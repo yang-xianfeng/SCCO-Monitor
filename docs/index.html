@@ -35,7 +35,7 @@ h1{font-size:20px;font-weight:600;color:#e8e8f0;margin-bottom:4px}
 <body>
 <div class="container">
 <h1>SCCO · Cola 铜价系数监控</h1>
-<p class="sub">更新于 2026-07-03 19:15 UTC  ·  共 1 个交易日数据</p>
+<p class="sub">更新于 2026-07-03 19:23 UTC  ·  共 1 个交易日数据</p>
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center">
     <div>
@@ -45,22 +45,22 @@ h1{font-size:20px;font-weight:600;color:#e8e8f0;margin-bottom:4px}
     </div>
     <div style="text-align:right">
       <div class="stat-label">当前系数</div>
-      <div class="stat-value safe">1.0760</div>
+      <div class="stat-value safe">1.0757</div>
     </div>
   </div>
   <div class="card-grid">
-    <div><div class="stat-label">铜价</div><div class="stat-value">$6.2245</div></div>
+    <div><div class="stat-label">铜价</div><div class="stat-value">$6.2260</div></div>
     <div><div class="stat-label">SCCO</div><div class="stat-value">$172.01</div></div>
-    <div><div class="stat-label">P 1.10</div><div class="stat-value" style="color:#22c55e">$175.85</div></div>
-    <div><div class="stat-label">P 1.20</div><div class="stat-value" style="color:#eab308">$191.84</div></div>
-    <div><div class="stat-label">P 1.50</div><div class="stat-value" style="color:#ef4444">$239.80</div></div>
+    <div><div class="stat-label">P 1.10</div><div class="stat-value" style="color:#22c55e">$175.90</div></div>
+    <div><div class="stat-label">P 1.20</div><div class="stat-value" style="color:#eab308">$191.89</div></div>
+    <div><div class="stat-label">P 1.50</div><div class="stat-value" style="color:#ef4444">$239.86</div></div>
   </div>
 </div>
 <div id="chart"></div>
 <div class="footer">数据来源: Yahoo Finance · 每交易日更新 · <a href="https://github.com/yang-xianfeng/scco-monitor" style="color:#555">GitHub</a></div>
 </div>
 <script>
-const DATA = [{"date": "2026-07-03", "copper": "6.2245", "scco_open": "171.0", "scco_high": "175.89", "scco_low": "169.14", "scco_close": "172.01", "scco_volume": "1454500", "ratio": "1.076", "p_110": "175.85", "p_120": "191.84", "p_150": "239.8"}];
+const DATA = [{"date": "2026-07-03", "copper": "6.226", "scco_open": "171.0", "scco_high": "175.89", "scco_low": "169.14", "scco_close": "172.01", "scco_volume": "1454500", "ratio": "1.0757", "p_110": "175.9", "p_120": "191.89", "p_150": "239.86"}];
 if (DATA.length === 0) {
   document.getElementById('chart').innerHTML = '<div class="empty-state"><h2>暂无数据</h2><p>等待首次采集完成后将显示 K 线图</p></div>';
 } else {

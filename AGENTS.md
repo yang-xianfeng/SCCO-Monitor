@@ -35,9 +35,8 @@ tests/test_main.py   # 39 tests: calc, CSV, HTML, data, notify
 - **No database, no server, no framework.** CSV is the data store.
 - **CSV upsert:** same‑date rows overwrite (not duplicate), re‑read sorts by date.
 - **GitHub Actions:** `schedule` + `workflow_dispatch`. Two runs per weekday
-  (open / close US equity). Uses `stefanzweifel/git-auto-commit-action` to
-  commit `data/` and `docs/` changes back, then `actions/deploy-pages` to
-  deploy to GitHub Pages.
+  (open / close US equity). Workflow order: run → configure-pages →
+  upload-pages-artifact → deploy-pages → git-auto-commit.
 - **Pages source must be "GitHub Actions"** (not "Deploy from a branch").
   The workflow handles both committing and deploying.
 - **No test runner config** — just `pytest` directly. No lint/typecheck yet.

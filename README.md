@@ -31,63 +31,91 @@ Cola 铜价系数 = 实际市值 / 锚定市值
 | `data/history.csv` | 每日 OHLCV + 系数 + 参考价，可直接用于回测 |
 | `docs/index.html` | Plotly K 线图 + P₁.₁₀/P₁.₂₀/P₁.₅₀ 参考线，GitHub Pages 查看 |
 
-## GitHub Actions 部署（完整指南）
+## GitHub Actions 部署
 
-### 1. 首次配置
+### 分步配置（按顺序执行）
 
-Fork 或 clone 此仓库后，需要完成以下 GitHub 侧配置：
+#### 1. Fork 或 Clone 此仓库
 
-#### A. GitHub Pages 设置
+```bash
+git clone git@github.com:你的用户名/scco-monitor.git
+cd scco-monitor
+```
 
-1. 进入仓库 **Settings → Pages**
-2. **Source**: 选择 **GitHub Actions**
-3. 无需额外配置 — 工作流会自动构建并部署
+#### 2. 启用 GitHub Pages（最关键一步）
 
-> ⚠️ 不要选择 "Deploy from a branch" — 本项目使用 Actions 部署方式，工作流中已包含完整的 Pages 部署步骤。选择 branch 方式会导致 404。
+进入仓库 **Settings → Pages**：
 
-#### B. 环境变量（可选）
+- **Source**: 必须选择 **GitHub Actions**（见下图示意）
+- 不要选择 "Deploy from a branch" — 选择 branch 会导致 404，因为本项目由工作流构建并部署
 
-| 变量 | 类型 | 位置 | 说明 |
-|------|------|------|------|
-| `USER_COST` | Variables | Settings → Secrets and variables → Actions | 持仓成本价，用于计算浮亏百分比 |
-| `FEISHU_WEBHOOK` | Secrets | 同上 (Secrets) | 飞书机器人 Webhook URL |
-| `TELEGRAM_BOT_TOKEN` | Secrets | 同上 (Secrets) | Telegram Bot Token |
-| `TELEGRAM_CHAT_ID` | Secrets | 同上 (Secrets) | Telegram Chat ID |
+```
+Settings → Pages → Source: [GitHub Actions]  ← 选这个
+```
+
+#### 3. 配置环境变量（可选，但请注意 USER_COST）
+
+进入 **Settings → Secrets and variables → Actions**，分两类配置：
+
+**Variables（变量）**：
+| 变量名 | 说明 | 是否必填 |
+|--------|------|----------|
+| `USER_COST` | 你的 SCCO 持仓成本价（如 184.36） | 选填，不设则默认 184.36 |
+
+> ⚠️ **USER_COST 陷阱**：如果设置了该变量但值为**空**，脚本会因 `float('')` 崩溃。要么不设此变量，要么设一个有效数值。代码已做保护，但建议不设或设有效值。
+
+**Secrets（密钥）**：
+| 变量名 | 说明 | 是否必填 |
+|--------|------|----------|
+| `FEISHU_WEBHOOK` | 飞书机器人 Webhook URL | 选填 |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 选填 |
+| `TELEGRAM_CHAT_ID` | Telegram Chat ID | 选填 |
 
 通知渠道均为可选，不配则静默运行，仅更新图表。
 
-### 2. 触发方式
+#### 4. 触发工作流
 
-- **自动**: 每个美股交易日 UTC 14:00（开盘后）和 UTC 20:30（收盘后）各运行一次
-- **手动**: 在 Actions 页面点击 **Run workflow** → `workflow_dispatch`
+- **手动触发**：进入 **Actions** 页面 → 左侧点 **SCCO Monitor** → 点 **Run workflow** → 绿色按钮
+- **自动触发**：每个美股交易日 UTC 14:00（开盘后）和 UTC 20:30（收盘后）各运行一次
 
-### 3. 部署流程（工作流说明）
+#### 5. 验证部署
 
-每次运行，GitHub Actions 自动执行：
+工作流运行成功后（绿色勾 ✅）：
+
+1. 进入 **Settings → Pages**，查看 **"Active deployment"** 信息，确认有最近部署记录
+2. 访问 `https://你的用户名.github.io/scco-monitor/`（例如 `https://yang-xianfeng.github.io/scco-monitor/`）
+3. 页面应显示 K 线图和数据卡片
+
+### 工作流内部流程
+
+每次运行，GitHub Actions 自动按序执行：
 
 ```
-checkout → pip install → python main.py → upload docs/ → deploy Pages → git commit
+checkout → pip install → python main.py → configure-pages → upload docs/ → deploy-pages → git-auto-commit
 ```
 
-1. `python main.py` — 采集数据、计算系数、更新 CSV、生成 HTML
-2. `actions/configure-pages` — 配置 Pages 环境
-3. `actions/upload-pages-artifact` — 将 `docs/` 目录上传为 Pages 构建产物
-4. `actions/deploy-pages` — 部署到 GitHub Pages
-5. `git-auto-commit-action` — 将 `data/` 和 `docs/` 提交回仓库（保留历史记录）
+| 步骤 | 动作 | 说明 |
+|------|------|------|
+| 1 | `actions/checkout` | 拉取仓库代码 |
+| 2 | `pip install -r requirements.txt` | 安装 Python 依赖 |
+| 3 | `python main.py` | 采集数据、计算系数、更新 CSV、生成 HTML |
+| 4 | `actions/configure-pages` | 配置 Pages 环境（若未启用则自动启用） |
+| 5 | `actions/upload-pages-artifact` | 将 `docs/` 目录上传为 Pages 构建产物 |
+| 6 | `actions/deploy-pages` | 将产物部署到 GitHub Pages |
+| 7 | `git-auto-commit-action` | 将更新后的 `data/` 和 `docs/` 提交回仓库 |
 
-### 4. 验证部署
+### 404 排查清单
 
-1. 工作流运行成功后，在 Actions 页面确认 ✅ 绿色勾
-2. 进入 **Settings → Pages**，查看 "Active deployment" 信息
-3. 访问 `https://yang-xianfeng.github.io/scco-monitor/`（替换为你的 GitHub 用户名）
+如果部署成功但页面 404，请逐一检查：
 
-> 首次部署后可能需要等待 1-2 分钟 DNS 生效。如果仍显示 404，请检查：
-> - ✅ Pages Source 是否为 **GitHub Actions**（而非 "Deploy from a branch"）
-> - ✅ 工作流是否运行成功（绿色勾）
-> - ✅ `docs/index.html` 是否已在仓库中存在（非空文件）
-> - ✅ `docs/.nojekyll` 是否存在（防止 Jekyll 处理问题）
+- [ ] **Settings → Pages → Source** 是否为 **GitHub Actions**（不是 "Deploy from a branch"）
+- [ ] **Actions 页面的工作流运行日志** — 所有步骤是否绿色勾（尤其 `Upload artifact` 和 `Deploy to Pages`）
+- [ ] **仓库中是否存在 `docs/index.html`** — 非空文件（初始提交已包含，工作流每次覆盖）
+- [ ] **仓库中是否存在 `docs/.nojekyll`** — 必须存在，否则 Jekyll 可能干扰
+- [ ] **访问的 URL 是否正确** — 格式为 `https://<owner>.github.io/<repo>/`，注意末尾斜杠和 repo 名大小写
+- [ ] **首次部署后等待 1-2 分钟** — GitHub Pages 首次激活需要时间
 
-### 5. 本地测试
+### 本地测试
 
 ```bash
 # 安装依赖
@@ -117,7 +145,7 @@ scco-monitor/
 │   └── test_main.py             # 39 个测试
 ├── .env.example                 # 本地环境变量模板
 ├── .gitignore
-├── AGENTS.md                    # Cursor/opencode 代理说明
+├── AGENTS.md                    # AI 代理说明文件
 ├── main.py                      # 单文件核心逻辑（~300 行）
 ├── requirements.txt
 └── README.md
