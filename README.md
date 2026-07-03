@@ -66,13 +66,14 @@ Fork 或 clone 此仓库后，需要完成以下 GitHub 侧配置：
 每次运行，GitHub Actions 自动执行：
 
 ```
-checkout → pip install → python main.py → git commit → upload docs/ → deploy Pages
+checkout → pip install → python main.py → upload docs/ → deploy Pages → git commit
 ```
 
 1. `python main.py` — 采集数据、计算系数、更新 CSV、生成 HTML
-2. `git-auto-commit-action` — 将 `data/` 和 `docs/` 提交回仓库（保留历史记录）
+2. `actions/configure-pages` — 配置 Pages 环境
 3. `actions/upload-pages-artifact` — 将 `docs/` 目录上传为 Pages 构建产物
 4. `actions/deploy-pages` — 部署到 GitHub Pages
+5. `git-auto-commit-action` — 将 `data/` 和 `docs/` 提交回仓库（保留历史记录）
 
 ### 4. 验证部署
 
