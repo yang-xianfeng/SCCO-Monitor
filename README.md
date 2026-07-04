@@ -67,7 +67,10 @@ python main.py
 
 ### 3. 触发
 
-- **自动**: 美股交易日（开盘密集每 5min · 盘中每 15min · 收盘密集每 5min）
+- **自动**: 美股交易日
+  - 开盘前~前2h：每 **5 min**（13-15 UTC = 9-11 ET 夏令时 / 8-10 ET 冬令时）
+  - 盘中：每 **15 min**（16-19 UTC）
+  - 收盘：每 **5 min**（20-21 UTC = 16-17 ET / 15-16 ET）
 - **手动**: Actions → SCCO Monitor → Run workflow
 
 ### 4. 访问

@@ -6,11 +6,13 @@ on:
     paths-ignore:
       - 'data/**'
       - 'docs/**'
+  # ⚠️ cron 运行在 UTC，不认时区
+  #   夏令时 EDT=UTC-4 · 冬令时 EST=UTC-5
+  #   美股交易: 9:30-16:00 ET
   schedule:
-    # 夏令时 (EDT=UTC-4) 覆盖 13:30-20:00 · 冬令时 (EST=UTC-5) 覆盖 14:30-21:00
-    - cron: '*/5 13-14 * * 1-5'    # 开盘密集（前 2h 每 5min）
-    - cron: '*/15 15-19 * * 1-5'   # 盘中常规（每 15min）
-    - cron: '*/5 20 * * 1-5'       # 收盘密集（最后 1h 每 5min）
+    - cron: '*/5 13-15 * * 1-5'   # 13-15 UTC =  9:00-11:00 ET(EDT) /  8:00-10:00 ET(EST) → 开盘密集
+    - cron: '*/15 16-19 * * 1-5'  # 16-19 UTC = 12:00-15:00 ET(EDT) / 11:00-14:00 ET(EST) → 盘中常规
+    - cron: '*/5 20-21 * * 1-5'   # 20-21 UTC = 16:00-17:00 ET(EDT) / 15:00-16:00 ET(EST) → 收盘密集
   workflow_dispatch:
 
 permissions:
