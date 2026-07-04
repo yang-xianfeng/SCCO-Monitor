@@ -8,8 +8,12 @@ from .config import FEISHU_WEBHOOK, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 def push(text: str) -> None:
     if FEISHU_WEBHOOK:
         try:
-            requests.post(FEISHU_WEBHOOK, json={"msg_type": "text", "content": {"text": text}}, timeout=10)
-        except Exception as e:
+            requests.post(
+                FEISHU_WEBHOOK,
+                json={"msg_type": "text", "content": {"text": text}},
+                timeout=10,
+            )
+        except requests.RequestException as e:
             print(f"WARN: 飞书推送失败: {e}")
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         try:
@@ -18,5 +22,5 @@ def push(text: str) -> None:
                 json={"chat_id": TELEGRAM_CHAT_ID, "text": text},
                 timeout=10,
             )
-        except Exception as e:
+        except requests.RequestException as e:
             print(f"WARN: Telegram 推送失败: {e}")

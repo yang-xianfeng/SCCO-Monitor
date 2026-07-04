@@ -3,19 +3,28 @@
 import os
 from pathlib import Path
 
+
+def _env_float(key: str, default: float) -> float:
+    """读取环境变量并转为 float，空值/缺省时返回 default."""
+    val = os.getenv(key)
+    if val is None or val.strip() == "":
+        return default
+    return float(val)
+
+
 # ── 标的 ───────────────────────────────────────────
 COPPER_TICKER = "HG=F"
 SCCO_TICKER = "SCCO"
 DEFAULT_SHARES = 773_000_000
 
 # ── 相关性系数阈值（从配置文件读取, 可按需调整）──
-THRESHOLD_SAFE = float(os.getenv("THRESHOLD_SAFE", "1.08"))
-THRESHOLD_WATCH = float(os.getenv("THRESHOLD_WATCH", "1.18"))
-THRESHOLD_HOT = float(os.getenv("THRESHOLD_HOT", "1.28"))
+THRESHOLD_SAFE = _env_float("THRESHOLD_SAFE", 1.08)
+THRESHOLD_WATCH = _env_float("THRESHOLD_WATCH", 1.18)
+THRESHOLD_HOT = _env_float("THRESHOLD_HOT", 1.28)
 
 # ── 锚定市值公式参数 ──────────────────────────────
-ANCHOR_COPPER_BASE = float(os.getenv("ANCHOR_COPPER_BASE", "4.2"))
-ANCHOR_MCAP_FACTOR = float(os.getenv("ANCHOR_MCAP_FACTOR", "900"))
+ANCHOR_COPPER_BASE = _env_float("ANCHOR_COPPER_BASE", 4.2)
+ANCHOR_MCAP_FACTOR = _env_float("ANCHOR_MCAP_FACTOR", 900)
 
 # ── 路径 ──────────────────────────────────────────
 DATA_DIR = Path("data")

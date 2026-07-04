@@ -9,7 +9,7 @@ from scco_monitor.backtest import run
 from scco_monitor.chart import build_html
 from scco_monitor.config import PAGES_URL
 from scco_monitor.core import calculate_ratio, get_signal
-from scco_monitor.fetcher import fetch_intraday_data, fetch_market_data
+from scco_monitor.fetcher import FetchError, fetch_intraday_data, fetch_market_data
 from scco_monitor.notifier import push
 from scco_monitor.storage import append_csv, read_csv
 
@@ -42,7 +42,6 @@ def main():
     build_html(rows, intro, data, ratio, bt)
     print(f"[6] HTML 已生成")
 
-    _, sig_tag = get_signal(ratio["ratio"])
     report = (
         f"【SCCO Monitor】{now.strftime('%m-%d %H:%M')}\n"
         f"铜 ${data['copper']}  |  SCCO ${data['scco_close']}\n"
@@ -58,4 +57,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FetchError as e:
+        print(f"ERROR: {e}")
+        exit(1)

@@ -5,6 +5,7 @@
 """
 
 import csv
+from pathlib import Path
 
 import scco_monitor.config as cfg
 
@@ -30,8 +31,7 @@ def _merge_row(existing: list[dict], new_row: dict) -> list[dict]:
 
 def append_csv(data: dict, ratio_result: dict) -> None:
     """追加日线数据 (同日期覆盖)."""
-    from pathlib import Path
-    Path(cfg.CSV_PATH).parent.mkdir(exist_ok=True)
+    Path(cfg.CSV_PATH).parent.mkdir(parents=True, exist_ok=True)
 
     merged = {**data, **ratio_result}
     new_row = {k: str(merged[k]) for k in FIELDS}
@@ -58,8 +58,7 @@ def read_csv() -> list[dict]:
 
 
 def append_intraday_csv(rows: list[dict], ratio: float) -> None:
-    from pathlib import Path
-    Path(cfg.CSV_INTRADAY_PATH).parent.mkdir(exist_ok=True)
+    Path(cfg.CSV_INTRADAY_PATH).parent.mkdir(parents=True, exist_ok=True)
     write_header = not cfg.CSV_INTRADAY_PATH.exists()
     with open(cfg.CSV_INTRADAY_PATH, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=INTRADAY_FIELDS)

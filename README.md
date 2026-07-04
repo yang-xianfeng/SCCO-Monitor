@@ -43,9 +43,9 @@ python main.py
 
 ## GitHub Actions 部署
 
-### 1. Fork 仓库 → Settings → Pages → Source: **GitHub Actions**
+### 1. Fork → Settings → Pages → Source: **GitHub Actions**
 
-### 2. 环境变量 (可选)
+### 2. 环境变量（可选）
 
 **Variables:**
 - `THRESHOLD_SAFE` — 安全区间上限 (默认 1.08)
@@ -69,30 +69,34 @@ python main.py
 
 ```bash
 pip install -r requirements.txt
-python main.py                        # 单次运行
-pip install pytest pytest-mock && python -m pytest tests/ -v  # 测试
+python main.py
+pip install pytest && python -m pytest tests/ -v
 ```
 
-## 结构
+---
+
+## 项目结构
 
 ```
-main.py            # 入口 (~50 行)
+main.py                 # 入口
 scco_monitor/
-├── config.py      # 全局配置 (阈值/路径/环境变量)
-├── fetcher.py     # 数据采集 (日线 + 15min 日内)
-├── core.py        # 相关性系数计算 + 信号判定
-├── storage.py     # CSV 读写
-├── backtest.py    # 系数区间转换记录
-├── notifier.py    # 飞书 / Telegram 推送
-└── chart.py       # Plotly HTML (专业深色主题)
-data/              # CSV 数据存储
-docs/              # 静态 HTML 页面
-tests/             # 31 个测试
+├── __init__.py
+├── config.py           # 全局配置（阈值/路径/环境变量）
+├── fetcher.py          # 数据采集（yfinance 日线 + 15min 日内）
+├── core.py             # 相关性系数计算 + 信号判定
+├── storage.py          # CSV 读写（日线 upsert + 日内追加）
+├── backtest.py         # 系数区间转换记录
+├── notifier.py         # 飞书 / Telegram 推送
+├── chart.py            # Plotly 图表 + HTML 渲染
+└── template.html       # HTML 模板（与 chart.py 分离）
+data/                   # CSV 数据存储
+docs/                   # 静态 HTML 页面
+tests/                  # 31 个测试用例
 ```
 
 ## 设计原则
 
 - **纯系数参考** — 无持仓、无成本、无交易建议
-- **可配置阈值** — 所有阈值从环境变量读取
+- **可配置阈值** — 所有阈值从环境变量读取，空值自动回退默认值
 - **零冗余依赖** — 仅 yfinance / requests / pandas
 - **CSV 即数据仓库** — 零运维成本

@@ -35,7 +35,7 @@ def calculate_ratio(data: dict) -> dict:
     }
 
 
-def get_signal(ratio: float) -> tuple:
+def get_signal(ratio: float) -> tuple[str, str]:
     """根据相关性系数判定当前所在区间.
 
     返回: (key, label)

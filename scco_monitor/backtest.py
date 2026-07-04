@@ -3,17 +3,7 @@
 记录每日系数所在区间, 标记区间切换的时间点与价格.
 """
 
-from .config import THRESHOLD_HOT, THRESHOLD_SAFE, THRESHOLD_WATCH
-
-
-def _zone(ratio: float) -> str:
-    if ratio <= THRESHOLD_SAFE:
-        return "safe"
-    if ratio <= THRESHOLD_WATCH:
-        return "watch"
-    if ratio < THRESHOLD_HOT:
-        return "hot"
-    return "danger"
+from .core import get_signal
 
 
 def run(rows: list[dict]) -> dict:
@@ -35,7 +25,7 @@ def run(rows: list[dict]) -> dict:
         date = row["date"]
         ratio = float(row["ratio"])
         price = float(row.get("scco_close", 0))
-        z = _zone(ratio)
+        z = get_signal(ratio)[0]
 
         zones.append((date, z, ratio, price))
 

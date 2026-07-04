@@ -10,7 +10,7 @@ from scco_monitor import config
 from scco_monitor.backtest import run as run_bt
 from scco_monitor.chart import build_chart_json, build_html
 from scco_monitor.core import calculate_ratio, get_signal
-from scco_monitor.fetcher import fetch_market_data
+from scco_monitor.fetcher import FetchError, fetch_market_data
 from scco_monitor.storage import append_csv, append_intraday_csv, read_csv, read_intraday_csv
 
 
@@ -188,7 +188,7 @@ class TestFetch:
     @patch("scco_monitor.fetcher.yf.Ticker")
     def test_empty(self, mock_t):
         mock_t.return_value.history.return_value = pd.DataFrame()
-        with pytest.raises(SystemExit):
+        with pytest.raises(FetchError):
             fetch_market_data()
 
     @patch("scco_monitor.fetcher.yf.Ticker")

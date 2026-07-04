@@ -9,6 +9,7 @@ Plotly 深色主题, 包含:
 
 import json
 from datetime import datetime
+from pathlib import Path
 
 from .config import (
     ANCHOR_COPPER_BASE,
@@ -21,6 +22,12 @@ from .config import (
     THRESHOLD_WATCH,
 )
 from .core import get_signal
+
+_HERE = Path(__file__).parent
+
+
+def _load_template() -> str:
+    return (_HERE / "template.html").read_text(encoding="utf-8")
 
 
 def build_chart_json(daily, intraday, backtest, cur_data, cur_ratio) -> str:
@@ -61,7 +68,6 @@ def build_chart_json(daily, intraday, backtest, cur_data, cur_ratio) -> str:
         p_watch.append(round(THRESHOLD_WATCH * anchor / s, 2))
         p_hot.append(round(THRESHOLD_HOT * anchor / s, 2))
 
-    # 系数区间切换标记
     transitions = backtest.get("transitions", [])
     marker_data = {"up": {"x": [], "y": []}, "down": {"x": [], "y": []}}
     for t in transitions:
@@ -141,9 +147,6 @@ def build_bt_chart_json(backtest: dict, cur_price: float) -> str:
     prices = [z[3] for z in zones]
     zone_colors = {"safe": "#26a69a", "watch": "#ffa726", "hot": "#ff7043", "danger": "#ef5350"}
 
-    # 当前价格锚定
-    nav = [p / cur_price * 100 for p in prices]  # 归一化到当前价格=100
-
     trace = {
         "type": "scatter", "x": dates, "y": ratios,
         "mode": "lines+markers",
@@ -183,9 +186,8 @@ def build_bt_chart_json(backtest: dict, cur_price: float) -> str:
 
 def build_html(daily, intraday, cur_data, cur_ratio, backtest) -> None:
     """生成完整 HTML."""
-    from pathlib import Path
     from .config import DOCS_DIR, HTML_PATH
-    Path(DOCS_DIR).mkdir(exist_ok=True)
+    Path(DOCS_DIR).mkdir(parents=True, exist_ok=True)
 
     sig_key, sig_tag = get_signal(cur_ratio["ratio"])
     now = datetime.now()
@@ -197,7 +199,8 @@ def build_html(daily, intraday, cur_data, cur_ratio, backtest) -> None:
     transitions = backtest.get("transitions", [])
     zones = backtest.get("zone_history", [])
 
-    html = _TEMPLATE % {
+    template = _load_template()
+    html = template % {
         "updated": now.strftime("%Y-%m-%d %H:%M UTC"),
         "total_days": total_days,
         "sig_key": sig_key,
@@ -217,131 +220,3 @@ def build_html(daily, intraday, cur_data, cur_ratio, backtest) -> None:
     }
     HTML_PATH.write_text(html, encoding="utf-8")
     print(f"  HTML 生成 ({total_days} 日 + {len(intraday)} 根日内)")
-
-
-_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SCCO · 相关性系数</title>
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<style>
-:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#c9d1d9;--sec:#8b949e;--muted:#484f58;--safe:#26a69a;--watch:#ffa726;--hot:#ff7043;--danger:#ef5350;--accent:#58a6ff;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-*{margin:0;padding:0;box-sizing:border-box}
-html{font-size:14px}
-body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5}
-.container{max-width:1200px;margin:0 auto;padding:20px 16px}
-.header{display:flex;justify-content:space-between;align-items:center;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.header h1{font-size:18px;font-weight:600}
-.header h1 span{color:var(--sec);font-weight:400}
-.header-meta{text-align:right;font-size:11px;color:var(--sec)}
-.signal-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.card.safe::before{background:var(--safe)}
-.card.watch::before{background:var(--watch)}
-.card.hot::before{background:var(--hot)}
-.card.danger::before{background:var(--danger)}
-.tag{display:inline-block;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600}
-.tag.safe{background:rgba(38,166,154,.15);color:var(--safe);border:1px solid rgba(38,166,154,.3)}
-.tag.watch{background:rgba(255,167,38,.15);color:var(--watch);border:1px solid rgba(255,167,38,.3)}
-.tag.hot{background:rgba(255,112,67,.15);color:var(--hot);border:1px solid rgba(255,112,67,.3)}
-.tag.danger{background:rgba(239,83,80,.15);color:var(--danger);border:1px solid rgba(239,83,80,.3)}
-.signal-label{font-size:15px;font-weight:600;margin:6px 0 0}
-.coef-wrap{text-align:right}
-.coef-wrap .label{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
-.coef-wrap .value{font-size:34px;font-weight:700;line-height:1.1}
-.coef-wrap .value.safe{color:var(--safe)}
-.coef-wrap .value.watch{color:var(--watch)}
-.coef-wrap .value.hot{color:var(--hot)}
-.coef-wrap .value.danger{color:var(--danger)}
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
-.metrics .item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
-.metrics .item .l{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
-.metrics .item .v{font-size:16px;font-weight:600;margin-top:2px}
-.metrics .item .v.green{color:var(--safe)}
-.metrics .item .v.yellow{color:var(--watch)}
-.metrics .item .v.red{color:var(--danger)}
-.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;margin-bottom:14px}
-.chart-wrap .title{font-size:12px;font-weight:600;color:var(--sec);padding:6px 10px 0}
-#chart{height:480px}
-.bt-section{margin-bottom:14px}
-.bt-section h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--sec)}
-.bt-summary{font-size:11px;color:var(--muted);margin-bottom:8px}
-#bt-chart{height:180px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px}
-.footer{border-top:1px solid var(--border);padding:12px 0;display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
-.footer a{color:var(--sec);text-decoration:none}
-.footer a:hover{color:var(--accent)}
-@media(max-width:768px){
-  .signal-row{grid-template-columns:1fr}
-  .metrics{grid-template-columns:repeat(3,1fr)}
-  #chart{height:340px}#bt-chart{height:140px}
-  .header{flex-direction:column;align-items:flex-start;gap:6px}
-}
-</style>
-</head>
-<body>
-<div class="container">
-
-<header class="header">
-  <div><h1>SCCO <span>· 相关性系数</span></h1></div>
-  <div class="header-meta">%(updated)s<br>共 %(total_days)d 个交易日</div>
-</header>
-
-<div class="signal-row">
-  <div class="card %(sig_key)s">
-    <span class="tag %(sig_key)s">%(sig_tag)s</span>
-    <div class="signal-label">相关性系数处于 <strong>%(sig_tag)s</strong> 区间</div>
-  </div>
-  <div class="card" style="cursor:default">
-    <div class="coef-wrap">
-      <div class="label">相关性系数</div>
-      <div class="value %(sig_key)s">%(ratio).4f</div>
-    </div>
-  </div>
-</div>
-
-<div class="metrics">
-  <div class="item"><div class="l">铜期货</div><div class="v">$%(copper).4f</div></div>
-  <div class="item"><div class="l">SCCO</div><div class="v">$%(scco_close).2f</div></div>
-  <div class="item"><div class="l">安全上沿</div><div class="v green">$%(p_safe).2f</div></div>
-  <div class="item"><div class="l">关注上沿</div><div class="v yellow">$%(p_watch).2f</div></div>
-  <div class="item"><div class="l">偏热上沿</div><div class="v red">$%(p_hot).2f</div></div>
-</div>
-
-<div class="chart-wrap">
-  <div class="title">价格走势 · 日线 + 日内 15min</div>
-  <div id="chart"></div>
-</div>
-
-<div class="bt-section">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <h3>系数区间历史</h3>
-    <span class="bt-summary">%(transitions)s 次区间切换 · %(zones_count)s 个交易日</span>
-  </div>
-  <div id="bt-chart"></div>
-</div>
-
-<footer class="footer">
-  <div>Data: Yahoo Finance · 每交易日更新</div>
-  <div><a href="%(github_url)s">GitHub</a> · <a href="%(pages_url)s">Pages</a></div>
-</footer>
-
-</div>
-
-<script>
-(function(){var c=%(chart_json)s;if(!c||!c.data||!c.data[0]||!c.data[0].x.length){
-  document.getElementById('chart').innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--muted)"><p>暂无数据</p></div>';return}
-  Plotly.react('chart',c.data,c.layout,c.config)})();
-
-(function(){var c=%(bt_chart_json)s;if(!c||c==='null'){
-  document.getElementById('bt-chart').innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><p>数据不足</p></div>';return}
-  Plotly.react('bt-chart',c.data,c.layout,c.config)})();
-
-window.addEventListener('resize',function(){
-  ['chart','bt-chart'].forEach(function(id){
-    var el=document.getElementById(id);if(el&&el.layout)Plotly.Plots.resize(el)})});
-</script>
-</body>
-</html>"""

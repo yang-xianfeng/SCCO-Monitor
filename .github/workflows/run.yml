@@ -33,28 +33,25 @@ jobs:
 
       - run: python main.py
         env:
-          THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
-          THRESHOLD_WATCH: ${{ vars.THRESHOLD_WATCH }}
-          THRESHOLD_HOT: ${{ vars.THRESHOLD_HOT }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./docs
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Commit data back to repo
         if: success()
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "auto: update data & chart"
           file_pattern: data/ docs/

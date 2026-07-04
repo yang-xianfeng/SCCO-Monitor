@@ -1,6 +1,5 @@
 """数据采集 — Yahoo Finance 日线 & 日内 15min."""
 
-import sys
 from datetime import datetime
 
 import pandas as pd
@@ -13,6 +12,10 @@ from .config import (
     INTRADAY_PERIOD,
     SCCO_TICKER,
 )
+
+
+class FetchError(Exception):
+    """数据采集失败."""
 
 
 def fetch_daily_data(period: str = "3mo") -> list[dict]:
@@ -80,8 +83,7 @@ def fetch_market_data() -> dict:
     scco_hist = scco.history(period="1d")
 
     if copper_hist.empty or scco_hist.empty:
-        print("ERROR: yfinance 返回空数据")
-        sys.exit(1)
+        raise FetchError("yfinance 返回空数据，可能非交易日或网络异常")
 
     shares = scco.info.get("sharesOutstanding") or DEFAULT_SHARES
 
