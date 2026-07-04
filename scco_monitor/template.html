@@ -16,7 +16,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .header h1 span{color:var(--sec);font-weight:400}
 .header-meta{font-size:10px;color:var(--muted);margin-top:2px}
 .stats{display:flex;gap:16px;margin-bottom:14px}
-.stat{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 12px}
+.stat{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
 .stat .l{font-size:11px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .stat .v{font-size:15px;font-weight:700}
 .stat .v.safe{color:var(--safe)}
@@ -32,6 +32,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .chart-wrap .title{font-size:11px;font-weight:600;color:var(--sec);padding:5px 10px 0;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .chart-wrap .title .badge{font-size:14px;font-weight:600;color:var(--muted);font-family:Consolas,monospace;letter-spacing:.5px}
 .chart-wrap .title .badge::before{content:"📅 ";font-size:12px}
+.chart-wrap .title .nt{font-size:11px;font-weight:400;color:var(--hot);margin-left:6px}
 #chart{height:360px}
 #history-chart{height:400px}
 .footer{border-top:1px solid var(--border);padding:12px 0;display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
@@ -39,7 +40,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .footer a:hover{color:var(--accent)}
 @media(max-width:768px){
   .stats{flex-wrap:wrap;gap:8px}
-  .stat{padding:6px 10px}
+  .stat{padding:10px 10px}
   .stat .v{font-size:14px}
   #chart{height:300px}#history-chart{height:340px}
 }
@@ -71,7 +72,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 
 <div class="chart-wrap">
   <div class="title">
-    <span class="badge">%(trade_date)s</span>
+    <span class="badge">%(trade_date)s%(non_trading)s</span>
     <span>Intraday · %(intraday_interval)s</span>
   </div>
   <div id="chart"></div>
