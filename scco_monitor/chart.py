@@ -177,7 +177,7 @@ def build_html(daily: list[dict], intraday: list[dict], cur_data: dict, cur_rati
     trade_date = daily[-1]["date"] if daily else now.strftime("%Y-%m-%d")
     trade_date_compact = trade_date.replace("-", "")
     today_compact = now.strftime("%Y%m%d")
-    non_trading = '<span class="nt">(非交易日)</span>' if trade_date_compact != today_compact else ""
+    non_trading = '<span class="nt">(非交易日)</span>' if (trade_date_compact != today_compact) or (not daily and now.weekday() >= 5) else ""
 
     template = _load_template()
     html = template % {
