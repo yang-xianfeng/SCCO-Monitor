@@ -93,10 +93,11 @@ main.py                 # 入口
 scco_monitor/
 ├── __init__.py         # 包信息
 ├── config.py           # 全局配置（阈值 / 路径 / 环境变量）
+├── models.py           # 数据模型（TypedDict + 信号枚举）
 ├── fetcher.py          # 数据采集（yfinance 日线 + 15min 日内）
 ├── core.py             # 相关性系数计算 + 信号判定
 ├── storage.py          # CSV 读写（日线 upsert + 日内追加）
-├── backtest.py         # 系数区间转换记录
+├── zone.py             # 系数区间转换记录
 ├── notifier.py         # 飞书 / Telegram 推送
 ├── chart.py            # Plotly 图表 + HTML 渲染
 └── template.html       # HTML 模板
