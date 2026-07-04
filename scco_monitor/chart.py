@@ -164,7 +164,11 @@ def build_history_chart_json(daily: list[dict]) -> str:
 
 
 def build_html(daily: list[dict], intraday: list[dict], cur_data: dict, cur_ratio: dict) -> None:
-    """生成完整 HTML."""
+    """生成完整 HTML.
+    
+    日期规则: 必须用 cur_data["date"] (当前 fetch 从 yfinance 索引获取),
+    不可用 daily[-1]["date"] (CSV 可能有陈旧条目).
+    """
     from .config import DOCS_DIR, HTML_PATH
     Path(DOCS_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -174,10 +178,8 @@ def build_html(daily: list[dict], intraday: list[dict], cur_data: dict, cur_rati
     chart_json = build_chart_json(intraday, cur_data, cur_ratio)
     history_chart_json = build_history_chart_json(daily)
 
-    trade_date = daily[-1]["date"] if daily else now.strftime("%Y-%m-%d")
+    trade_date = cur_data.get("date") or (daily[-1]["date"] if daily else now.strftime("%Y-%m-%d"))
     trade_date_compact = trade_date.replace("-", "")
-    today_compact = now.strftime("%Y%m%d")
-    non_trading = ""
 
     template = _load_template()
     html = template % {
@@ -194,7 +196,7 @@ def build_html(daily: list[dict], intraday: list[dict], cur_data: dict, cur_rati
         "intraday_interval": INTRADAY_INTERVAL,
         "days_historical": DAYS_HISTORICAL,
         "trade_date": trade_date_compact,
-        "non_trading": non_trading,
+        "non_trading": "",
         "plotly_version": PLOTLY_VERSION,
     }
     HTML_PATH.write_text(html, encoding="utf-8")
