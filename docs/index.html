@@ -29,8 +29,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .tag.hot{background:rgba(255,112,67,.15);color:var(--hot);border:1px solid rgba(255,112,67,.3)}
 .tag.danger{background:rgba(239,83,80,.15);color:var(--danger);border:1px solid rgba(239,83,80,.3)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;margin-bottom:14px}
-.chart-wrap .title{font-size:11px;font-weight:600;color:var(--sec);padding:5px 10px 0;display:flex;justify-content:space-between;align-items:center}
-.chart-wrap .title .badge{font-size:10px;font-weight:400;color:var(--muted);font-family:Consolas,monospace;letter-spacing:.5px}
+.chart-wrap .title{font-size:11px;font-weight:600;color:var(--sec);padding:5px 10px 0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chart-wrap .title .badge{font-size:11px;font-weight:600;color:var(--muted);font-family:Consolas,monospace;letter-spacing:.5px}
 .chart-wrap .title .badge::before{content:"📅 ";font-size:9px}
 #chart{height:360px}
 #history-chart{height:400px}
@@ -50,7 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 
 <header class="header">
   <h1>SCCO <span>· Correlation Monitor</span></h1>
-  <div class="header-meta">2026-07-04 01:50 ET</div>
+  <div class="header-meta">2026-07-04 02:02 ET</div>
 </header>
 
 <div class="stats">
@@ -70,16 +70,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 </div>
 
 <div class="chart-wrap">
-  <div class="title">History · 60D</div>
-  <div id="history-chart"></div>
+  <div class="title">
+    <span class="badge">20260704</span>
+    <span>Intraday · 15m</span>
+  </div>
+  <div id="chart"></div>
 </div>
 
 <div class="chart-wrap">
-  <div class="title">
-    <span>Intraday · 15m</span>
-    <span class="badge">20260704</span>
-  </div>
-  <div id="chart"></div>
+  <div class="title">History · 60D</div>
+  <div id="history-chart"></div>
 </div>
 
 <footer class="footer">
