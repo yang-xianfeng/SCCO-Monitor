@@ -15,7 +15,9 @@ from typing import Any
 from .config import (
     ANCHOR_COPPER_BASE,
     ANCHOR_MCAP_FACTOR,
+    ANCHOR_MCAP_UNIT,
     DAYS_HISTORICAL,
+    DEFAULT_SHARES,
     GITHUB_REPOSITORY,
     INTRADAY_INTERVAL,
     PAGES_URL,
@@ -23,11 +25,12 @@ from .config import (
     THRESHOLD_HOT,
     THRESHOLD_SAFE,
     THRESHOLD_WATCH,
+    TIMEZONE,
 )
 from .core import get_signal
 
 _HERE = Path(__file__).parent
-_ET = ZoneInfo("America/New_York")
+_ET = ZoneInfo(TIMEZONE)
 
 
 def _load_template() -> str:
@@ -55,8 +58,8 @@ def build_chart_json(intraday: list[dict], cur_data: dict, cur_ratio: dict) -> s
         ref = float(r.get("copper_ref", cur_data["copper"]) or cur_data["copper"])
         if ref == 0:
             continue
-        s = float(cur_data.get("shares", 773_000_000) or 773_000_000)
-        anchor = ref / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * 1e8
+        s = float(cur_data.get("shares", DEFAULT_SHARES) or DEFAULT_SHARES)
+        anchor = ref / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * ANCHOR_MCAP_UNIT
         p_safe.append(round(THRESHOLD_SAFE * anchor / s, 2))
         p_watch.append(round(THRESHOLD_WATCH * anchor / s, 2))
         p_hot.append(round(THRESHOLD_HOT * anchor / s, 2))

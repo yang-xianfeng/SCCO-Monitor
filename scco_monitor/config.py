@@ -33,6 +33,7 @@ THRESHOLD_HOT = _env_float("THRESHOLD_HOT", 1.28)
 # ── 锚定市值公式参数 ──────────────────────────────
 ANCHOR_COPPER_BASE = _env_float("ANCHOR_COPPER_BASE", 4.2)
 ANCHOR_MCAP_FACTOR = _env_float("ANCHOR_MCAP_FACTOR", 900)
+ANCHOR_MCAP_UNIT = 1e8
 
 # ── 路径 ──────────────────────────────────────────
 DATA_DIR = Path("data")
@@ -52,6 +53,11 @@ PAGES_URL = (
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_API_BASE = os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org")
+HTTP_TIMEOUT = _env_int("HTTP_TIMEOUT", 10)
+
+# ── 时区 ─────────────────────────────────────────
+TIMEZONE = os.getenv("TIMEZONE", "America/New_York")
 
 # ── 图表 ─────────────────────────────────────────
 DAYS_HISTORICAL = _env_int("DAYS_HISTORICAL", 60)

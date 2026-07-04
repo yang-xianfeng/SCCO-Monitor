@@ -7,6 +7,7 @@
 from .config import (
     ANCHOR_COPPER_BASE,
     ANCHOR_MCAP_FACTOR,
+    ANCHOR_MCAP_UNIT,
     THRESHOLD_HOT,
     THRESHOLD_SAFE,
     THRESHOLD_WATCH,
@@ -22,7 +23,7 @@ def calculate_ratio(data: dict) -> dict:
     p_scco = data["scco_close"]
     shares = data["shares"]
 
-    anchor_mcap = p_copper / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * 1e8
+    anchor_mcap = p_copper / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * ANCHOR_MCAP_UNIT
     actual_mcap = p_scco * shares
 
     ratio = actual_mcap / anchor_mcap

@@ -2,7 +2,13 @@
 
 import requests
 
-from .config import FEISHU_WEBHOOK, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from .config import (
+    FEISHU_WEBHOOK,
+    HTTP_TIMEOUT,
+    TELEGRAM_API_BASE,
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+)
 
 
 def push(text: str) -> None:
@@ -11,16 +17,16 @@ def push(text: str) -> None:
             requests.post(
                 FEISHU_WEBHOOK,
                 json={"msg_type": "text", "content": {"text": text}},
-                timeout=10,
+                timeout=HTTP_TIMEOUT,
             )
         except requests.RequestException as e:
             print(f"WARN: 飞书推送失败: {e}")
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         try:
             requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                f"{TELEGRAM_API_BASE}/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
                 json={"chat_id": TELEGRAM_CHAT_ID, "text": text},
-                timeout=10,
+                timeout=HTTP_TIMEOUT,
             )
         except requests.RequestException as e:
             print(f"WARN: Telegram 推送失败: {e}")
