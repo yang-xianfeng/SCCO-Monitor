@@ -116,14 +116,14 @@ def build_history_chart_json(daily) -> str:
     scco = [float(r["scco_close"]) for r in daily_slice]
     ratio = [float(r.get("ratio", 0)) for r in daily_slice]
 
-    labels = ["Cu", "SCCO", "Corr"]
+    labels = ["CU", "SCCO", "Corr"]
     colors = ["#ffa726", "#58a6ff", "#26a69a"]
 
     data = [
-        {"type": "scatter", "x": dates, "y": copper, "name": "Cu",
+        {"type": "scatter", "x": dates, "y": copper, "name": "CU",
          "mode": "lines", "line": {"color": colors[0], "width": 2},
          "yaxis": "y", "xaxis": "x",
-         "hovertemplate": "%{x|%Y%m%d}<br>Cu: $%{y:.4f}<extra></extra>"},
+         "hovertemplate": "%{x|%Y%m%d}<br>CU: $%{y:.4f}<extra></extra>"},
         {"type": "scatter", "x": dates, "y": scco, "name": "SCCO",
          "mode": "lines", "line": {"color": colors[1], "width": 2},
          "yaxis": "y3", "xaxis": "x",
@@ -142,7 +142,7 @@ def build_history_chart_json(daily) -> str:
         "xaxis": {"domain": [0, 1], "showticklabels": False, "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date"},
         "xaxis2": {"domain": [0, 1], "matches": "x", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date",
                    "tickformat": "%Y%m%d"},
-        "yaxis": {"title": {"text": "Cu ($)", "font": {"color": "#ffa726", "size": 14}}, "side": "left",
+        "yaxis": {"title": {"text": "CU ($)", "font": {"color": "#ffa726", "size": 14}}, "side": "left",
                   "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
         "yaxis3": {"title": {"text": "SCCO ($)", "font": {"color": "#58a6ff", "size": 14}}, "side": "right",
                     "overlaying": "y", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},

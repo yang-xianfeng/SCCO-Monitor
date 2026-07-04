@@ -15,8 +15,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .header h1{font-size:16px;font-weight:600;letter-spacing:.3px}
 .header h1 span{color:var(--sec);font-weight:400}
 .header-meta{font-size:10px;color:var(--muted);margin-top:2px}
-.stats{display:flex;justify-content:center;gap:16px;margin-bottom:14px}
-.stat{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
+.stats{display:flex;gap:16px;margin-bottom:14px}
+.stat{flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
 .stat .l{font-size:11px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:.3px}
 .stat .v{font-size:16px;font-weight:700}
 .stat .v.safe{color:var(--safe)}
@@ -55,7 +55,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 
 <div class="stats">
   <div class="stat">
-    <span class="l" style="color:#ffa726">Cu</span>
+    <span class="l" style="color:#ffa726">CU</span>
     <span class="v">$%(copper).4f</span>
   </div>
   <div class="stat">
@@ -70,16 +70,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 </div>
 
 <div class="chart-wrap">
+  <div class="title">History · %(days_historical)dD</div>
+  <div id="history-chart"></div>
+</div>
+
+<div class="chart-wrap">
   <div class="title">
     <span>Intraday · %(intraday_interval)s</span>
     <span class="badge">%(trade_date)s</span>
   </div>
   <div id="chart"></div>
-</div>
-
-<div class="chart-wrap">
-  <div class="title">History · %(days_historical)dD</div>
-  <div id="history-chart"></div>
 </div>
 
 <footer class="footer">

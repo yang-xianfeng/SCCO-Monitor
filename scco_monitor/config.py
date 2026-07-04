@@ -42,7 +42,7 @@ CSV_INTRADAY_PATH = DATA_DIR / "intraday.csv"
 HTML_PATH = DOCS_DIR / "index.html"
 
 # ── GitHub Pages ──────────────────────────────────
-GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "yang-xianfeng/scco-monitor")
+GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "yang-xianfeng/SCCO-Monitor")
 PAGES_URL = (
     f"https://{GITHUB_REPOSITORY.split('/')[0]}.github.io/"
     f"{GITHUB_REPOSITORY.split('/')[1]}/"

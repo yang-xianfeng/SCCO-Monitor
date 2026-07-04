@@ -61,7 +61,7 @@ python main.py
 - **手动**: Actions → SCCO Monitor → Run workflow
 
 ### 4. 访问
-`https://用户名.github.io/scco-monitor/`
+`https://用户名.github.io/SCCO-Monitor/`
 
 ---
 
