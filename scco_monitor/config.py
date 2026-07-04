@@ -5,7 +5,6 @@ from pathlib import Path
 
 
 def _env_float(key: str, default: float) -> float:
-    """读取环境变量并转为 float，空值/缺省时返回 default."""
     val = os.getenv(key)
     if val is None or val.strip() == "":
         return default
@@ -13,7 +12,6 @@ def _env_float(key: str, default: float) -> float:
 
 
 def _env_int(key: str, default: int) -> int:
-    """读取环境变量并转为 int，空值/缺省时返回 default."""
     val = os.getenv(key)
     if val is None or val.strip() == "":
         return default
@@ -25,7 +23,7 @@ COPPER_TICKER = "HG=F"
 SCCO_TICKER = "SCCO"
 DEFAULT_SHARES = 773_000_000
 
-# ── 相关性系数阈值（从配置文件读取, 可按需调整）──
+# ── 相关性系数阈值 ────────────────────────────────
 THRESHOLD_SAFE = _env_float("THRESHOLD_SAFE", 1.08)
 THRESHOLD_WATCH = _env_float("THRESHOLD_WATCH", 1.18)
 THRESHOLD_HOT = _env_float("THRESHOLD_HOT", 1.28)

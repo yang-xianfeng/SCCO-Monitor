@@ -9,16 +9,14 @@ from .core import get_signal
 def run(rows: list[dict]) -> dict:
     """扫描历史数据, 记录系数区间及切换事件.
 
-    返回: {
-      "zone_history": [(date, zone, ratio, price), ...],   // 每日区间
-      "transitions": [(date, old_zone, new_zone, ratio, price), ...],  // 切换点
-    }
+    返回:
+      zone_history: [(date, zone, ratio, price), ...]  // 每日区间
+      transitions:  [(date, old_zone, new_zone, ratio, price), ...]  // 切换点
     """
     if len(rows) < 2:
         return {"zone_history": [], "transitions": []}
 
-    zones = []
-    transitions = []
+    zones, transitions = [], []
     prev_zone = None
 
     for row in rows:

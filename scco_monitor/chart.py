@@ -1,6 +1,6 @@
 """HTML 图表 — 相关性系数监控面板.
 
-Plotly 深色主题, 包含:
+Plotly 深色主题:
   1. 头部三栏: 铜价, SCCO 股价, 相关性系数
   2. 日内 15min K 线图 (仅当日) + 阈值点标注
   3. 60 日历史走势 (铜价 / SCCO 股价 / 系数)
@@ -18,6 +18,8 @@ from .config import (
     ANCHOR_MCAP_UNIT,
     DAYS_HISTORICAL,
     DEFAULT_SHARES,
+    DOCS_DIR,
+    HTML_PATH,
     INTRADAY_INTERVAL,
     PLOTLY_VERSION,
     THRESHOLD_HOT,
@@ -35,14 +37,23 @@ def _load_template() -> str:
     return (_HERE / "template.html").read_text(encoding="utf-8")
 
 
+def _compute_threshold_prices(ref_copper: float, shares: float) -> dict[str, float]:
+    """根据铜价计算阈值对应的 SCCO 股价."""
+    anchor = ref_copper / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * ANCHOR_MCAP_UNIT
+    return {
+        "p_safe": round(THRESHOLD_SAFE * anchor / shares, 2),
+        "p_watch": round(THRESHOLD_WATCH * anchor / shares, 2),
+        "p_hot": round(THRESHOLD_HOT * anchor / shares, 2),
+    }
+
+
 def build_chart_json(intraday: list[dict], cur_data: dict, cur_ratio: dict) -> str:
-    """构建日内 15min 图表 (仅当日, 固定长度)."""
+    """日内 15min K 线图 + 阈值线."""
     if not intraday:
         return json.dumps({"data": [], "layout": {}, "config": {"responsive": True}},
                            ensure_ascii=False, default=str)
 
     dates, opn, high, low, close, vol = [], [], [], [], [], []
-
     for r in intraday:
         dates.append(r["datetime"])
         opn.append(float(r["scco_open"]))
@@ -51,16 +62,9 @@ def build_chart_json(intraday: list[dict], cur_data: dict, cur_ratio: dict) -> s
         close.append(float(r["scco_close"]))
         vol.append(float(r["scco_volume"]) / 1_000)
 
-    p_safe, p_watch, p_hot = [], [], []
-    for r in intraday:
-        ref = float(r.get("copper_ref", cur_data["copper"]) or cur_data["copper"])
-        if ref == 0:
-            continue
-        s = float(cur_data.get("shares", DEFAULT_SHARES) or DEFAULT_SHARES)
-        anchor = ref / ANCHOR_COPPER_BASE * ANCHOR_MCAP_FACTOR * ANCHOR_MCAP_UNIT
-        p_safe.append(round(THRESHOLD_SAFE * anchor / s, 2))
-        p_watch.append(round(THRESHOLD_WATCH * anchor / s, 2))
-        p_hot.append(round(THRESHOLD_HOT * anchor / s, 2))
+    ref_copper = float(intraday[0].get("copper_ref", cur_data.get("copper", 0)))
+    shares = float(cur_data.get("shares", DEFAULT_SHARES) or DEFAULT_SHARES)
+    threshold_prices = _compute_threshold_prices(ref_copper, shares)
 
     data: list[dict[str, Any]] = [
         {"type": "candlestick", "x": dates, "open": opn, "high": high, "low": low,
@@ -72,28 +76,24 @@ def build_chart_json(intraday: list[dict], cur_data: dict, cur_ratio: dict) -> s
                     "showscale": False}, "opacity": 0.4},
     ]
 
-    if p_safe:
-        data.append({"type": "scatter", "x": dates, "y": p_safe,
-                      "name": f"P<sub>{THRESHOLD_SAFE}</sub> 安全",
-                      "mode": "lines+markers",
-                      "line": {"color": "#26a69a", "dash": "dash", "width": 1},
-                      "marker": {"size": 5, "color": "#26a69a", "symbol": "diamond"}})
-    if p_watch:
-        data.append({"type": "scatter", "x": dates, "y": p_watch,
-                      "name": f"P<sub>{THRESHOLD_WATCH}</sub> 关注",
-                      "mode": "lines+markers",
-                      "line": {"color": "#ffa726", "dash": "dash", "width": 1},
-                      "marker": {"size": 5, "color": "#ffa726", "symbol": "diamond"}})
-    if p_hot:
-        data.append({"type": "scatter", "x": dates, "y": p_hot,
-                      "name": f"P<sub>{THRESHOLD_HOT}</sub> 偏热",
-                      "mode": "lines+markers",
-                      "line": {"color": "#ef5350", "dash": "dash", "width": 1},
-                      "marker": {"size": 5, "color": "#ef5350", "symbol": "diamond"}})
+    thresholds = [
+        (threshold_prices["p_safe"], f"P<sub>{THRESHOLD_SAFE}</sub> 安全", "#26a69a"),
+        (threshold_prices["p_watch"], f"P<sub>{THRESHOLD_WATCH}</sub> 关注", "#ffa726"),
+        (threshold_prices["p_hot"], f"P<sub>{THRESHOLD_HOT}</sub> 偏热", "#ef5350"),
+    ]
+    for price, label, color in thresholds:
+        data.append({
+            "type": "scatter", "x": dates, "y": [price] * len(dates),
+            "name": label, "mode": "lines+markers",
+            "line": {"color": color, "dash": "dash", "width": 1},
+            "marker": {"size": 5, "color": color, "symbol": "diamond"},
+        })
 
     layout = {
         "paper_bgcolor": "#0d1117", "plot_bgcolor": "#0d1117",
-        "font": {"color": "#c9d1d9", "family": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif", "size": 11},
+        "font": {"color": "#c9d1d9",
+                 "family": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif",
+                 "size": 11},
         "margin": {"l": 4, "r": 4, "t": 28, "b": 28},
         "xaxis": {"domain": [0, 1], "gridcolor": "#21262d", "zerolinecolor": "#21262d",
                   "type": "date", "rangeslider": {"visible": False},
@@ -106,12 +106,13 @@ def build_chart_json(intraday: list[dict], cur_data: dict, cur_ratio: dict) -> s
                    "bgcolor": "rgba(0,0,0,0)"},
         "hovermode": "x unified",
     }
-    return json.dumps({"data": data, "layout": layout, "config": {"responsive": True, "displayModeBar": False, "scrollZoom": False}},
+    return json.dumps({"data": data, "layout": layout,
+                        "config": {"responsive": True, "displayModeBar": False, "scrollZoom": False}},
                        ensure_ascii=False, default=str)
 
 
 def build_history_chart_json(daily: list[dict]) -> str:
-    """构建 60 日历史走势图 (铜价, SCCO 股价, 相关性系数)."""
+    """历史走势图 (铜价, SCCO 股价, 相关性系数)."""
     daily_slice = daily[-DAYS_HISTORICAL:] if len(daily) > DAYS_HISTORICAL else daily
     if len(daily_slice) < 2:
         return "null"
@@ -121,7 +122,6 @@ def build_history_chart_json(daily: list[dict]) -> str:
     scco = [float(r["scco_close"]) for r in daily_slice]
     ratio = [float(r.get("ratio", 0)) for r in daily_slice]
 
-    labels = ["Cu", "SCCO", "Corr"]
     colors = ["#ffa726", "#58a6ff", "#26a69a"]
 
     data = [
@@ -141,51 +141,58 @@ def build_history_chart_json(daily: list[dict]) -> str:
 
     layout = {
         "paper_bgcolor": "#0d1117", "plot_bgcolor": "#0d1117",
-        "font": {"color": "#c9d1d9", "family": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif", "size": 11},
+        "font": {"color": "#c9d1d9",
+                 "family": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif",
+                 "size": 11},
         "margin": {"l": 48, "r": 72, "t": 12, "b": 48},
         "grid": {"rows": 2, "columns": 1, "pattern": "independent"},
-        "xaxis": {"domain": [0, 1], "showticklabels": False, "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date"},
-        "xaxis2": {"domain": [0, 1], "matches": "x", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date",
+        "xaxis": {"domain": [0, 1], "showticklabels": False,
+                  "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date"},
+        "xaxis2": {"domain": [0, 1], "matches": "x",
+                   "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date",
                    "tickformat": "%Y%m%d"},
-        "yaxis": {"title": {"text": "Corr", "font": {"color": "#26a69a", "size": 14}}, "side": "right",
-                  "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
-        "yaxis2": {"title": {"text": "Cu ($)", "font": {"color": "#ffa726", "size": 14}}, "side": "left",
-                   "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
-        "yaxis3": {"title": {"text": "SCCO ($)", "font": {"color": "#58a6ff", "size": 14}}, "side": "right",
-                    "overlaying": "y2", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
+        "yaxis": {"title": {"text": "Corr", "font": {"color": colors[2], "size": 14}},
+                  "side": "right", "gridcolor": "#21262d", "zerolinecolor": "#21262d",
+                  "automargin": True},
+        "yaxis2": {"title": {"text": "Cu ($)", "font": {"color": colors[0], "size": 14}},
+                   "side": "left", "gridcolor": "#21262d", "zerolinecolor": "#21262d",
+                   "automargin": True},
+        "yaxis3": {"title": {"text": "SCCO ($)", "font": {"color": colors[1], "size": 14}},
+                   "side": "right", "overlaying": "y2",
+                   "gridcolor": "#21262d", "zerolinecolor": "#21262d",
+                   "automargin": True},
         "legend": {"orientation": "h", "y": 1.02, "x": 0, "font": {"size": 10},
                    "bgcolor": "rgba(0,0,0,0)"},
         "hovermode": "x unified",
     }
-    return json.dumps({"data": data, "layout": layout, "config": {"responsive": True, "displayModeBar": False}},
+    return json.dumps({"data": data, "layout": layout,
+                        "config": {"responsive": True, "displayModeBar": False}},
                        ensure_ascii=False, default=str)
 
 
 def _get_display_date(intraday: list[dict], cur_data: dict, daily: list[dict]) -> str:
     """确定标题栏显示的交易日日期.
-    
+
     优先级: intraday 数据来源日期 > fetch 市场数据日期 > CSV 最后日期.
     """
     if intraday:
         return intraday[-1]["datetime"][:10]
     if cur_data.get("date"):
-        return cur_data["date"]
+        return str(cur_data["date"])
     if daily:
-        return daily[-1]["date"]
+        return str(daily[-1]["date"])
     return datetime.now(_ET).strftime("%Y-%m-%d")
 
 
 def build_html(daily: list[dict], intraday: list[dict], cur_data: dict, cur_ratio: dict) -> None:
     """生成完整 HTML."""
-    from .config import DOCS_DIR, HTML_PATH
-    Path(DOCS_DIR).mkdir(parents=True, exist_ok=True)
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     sig_key, sig_tag = get_signal(cur_ratio["ratio"])
     now = datetime.now(_ET)
 
     chart_json = build_chart_json(intraday, cur_data, cur_ratio)
     history_chart_json = build_history_chart_json(daily)
-
     trade_date_compact = _get_display_date(intraday, cur_data, daily).replace("-", "")
 
     template = _load_template()

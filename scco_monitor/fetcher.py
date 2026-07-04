@@ -1,4 +1,7 @@
-"""数据采集 — Yahoo Finance 日线 & 日内 15min."""
+"""数据采集 — Yahoo Finance 日线 & 日内 15min.
+
+非交易日: fetch_market_data() 返回 None, fetch_intraday_data() 返回 [].
+"""
 
 from datetime import datetime
 
@@ -15,16 +18,18 @@ from .config import (
 
 
 class FetchError(Exception):
-    """数据采集失败."""
+    """数据采集失败 (网络 / yfinance 异常)."""
 
 
 def fetch_daily_data(period: str = "3mo") -> list[dict]:
-    """获取 SCCO + 铜期货 N 日日线 OHLCV."""
+    """获取 SCCO + 铜期货 N 日日线 OHLCV.
+
+    shares 只 fetch 一次 (避免循环内重复调用 yfinance API).
+    """
     copper = yf.Ticker(COPPER_TICKER).history(period=period)
     scco = yf.Ticker(SCCO_TICKER).history(period=period)
 
     if copper.empty or scco.empty:
-        print("WARN: 日线数据不完整")
         return []
 
     idx = scco.index.intersection(copper.index)
@@ -32,9 +37,8 @@ def fetch_daily_data(period: str = "3mo") -> list[dict]:
         return []
 
     shares = yf.Ticker(SCCO_TICKER).info.get("sharesOutstanding") or DEFAULT_SHARES
-    rows = []
-    for dt in idx:
-        rows.append({
+    return [
+        {
             "date": dt.strftime("%Y-%m-%d"),
             "copper": round(float(copper.loc[dt, "Close"]), 4),
             "scco_open": round(float(scco.loc[dt, "Open"]), 2),
@@ -43,26 +47,28 @@ def fetch_daily_data(period: str = "3mo") -> list[dict]:
             "scco_close": round(float(scco.loc[dt, "Close"]), 2),
             "scco_volume": int(scco.loc[dt, "Volume"]),
             "shares": int(shares),
-        })
-    return rows
+        }
+        for dt in idx
+    ]
 
 
 def fetch_intraday_data() -> list[dict]:
-    """获取当日 SCCO 15min 日内 OHLCV."""
+    """获取当日 SCCO 15min 日内 OHLCV + 铜价参考.
+
+    非交易日返回 [].
+    """
     scco = yf.Ticker(SCCO_TICKER).history(period=INTRADAY_PERIOD, interval=INTRADAY_INTERVAL)
     copper = yf.Ticker(COPPER_TICKER).history(period=INTRADAY_PERIOD, interval=INTRADAY_INTERVAL)
 
     if scco.empty:
-        print("WARN: 日内数据为空")
         return []
 
     copper_ref = round(float(copper["Close"].iloc[-1]), 4) if not copper.empty else 0.0
     last_date = scco.index[-1].date()
     scco_today = scco[scco.index.date == last_date]
 
-    rows = []
-    for idx, row in scco_today.iterrows():
-        rows.append({
+    return [
+        {
             "datetime": idx.to_pydatetime().isoformat(),
             "copper_ref": copper_ref,
             "scco_open": round(float(row["Open"]), 2),
@@ -70,22 +76,24 @@ def fetch_intraday_data() -> list[dict]:
             "scco_low": round(float(row["Low"]), 2),
             "scco_close": round(float(row["Close"]), 2),
             "scco_volume": int(row["Volume"]),
-        })
-    return rows
+        }
+        for idx, row in scco_today.iterrows()
+    ]
 
 
-def fetch_market_data() -> dict:
-    """采集当日单日行情."""
-    copper = yf.Ticker(COPPER_TICKER)
-    scco = yf.Ticker(SCCO_TICKER)
+def fetch_market_data() -> dict | None:
+    """采集当日单日行情.
 
-    copper_hist = copper.history(period="1d")
-    scco_hist = scco.history(period="1d")
+    返回 dict (有数据) 或 None (非交易日/空数据).
+    网络错误等仍可能抛出 FetchError.
+    """
+    copper_hist = yf.Ticker(COPPER_TICKER).history(period="1d")
+    scco_hist = yf.Ticker(SCCO_TICKER).history(period="1d")
 
     if copper_hist.empty or scco_hist.empty:
-        raise FetchError("yfinance 返回空数据，可能非交易日或网络异常")
+        return None
 
-    shares = scco.info.get("sharesOutstanding") or DEFAULT_SHARES
+    shares = yf.Ticker(SCCO_TICKER).info.get("sharesOutstanding") or DEFAULT_SHARES
 
     return {
         "date": copper_hist.index[-1].strftime("%Y-%m-%d"),

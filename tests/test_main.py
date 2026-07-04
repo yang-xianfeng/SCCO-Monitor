@@ -6,9 +6,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from scco_monitor import chart as scco_chart
 from scco_monitor import config
 from scco_monitor.backtest import run as run_bt
-from scco_monitor.chart import build_chart_json, build_html
+from scco_monitor.chart import build_chart_json, build_history_chart_json, build_html
 from scco_monitor.core import calculate_ratio, get_signal
 from scco_monitor.fetcher import FetchError, fetch_market_data
 from scco_monitor.storage import append_csv, append_intraday_csv, read_csv, read_intraday_csv
@@ -38,11 +39,14 @@ def sample_intraday():
 @pytest.fixture
 def tmp_workspace(tmp_path):
     d, doc = tmp_path / "data", tmp_path / "docs"
-    d.mkdir(); doc.mkdir()
+    d.mkdir()
+    doc.mkdir()
     with patch.object(config, "DATA_DIR", d), patch.object(config, "DOCS_DIR", doc), \
          patch.object(config, "CSV_PATH", d / "history.csv"), \
          patch.object(config, "CSV_INTRADAY_PATH", d / "intraday.csv"), \
-         patch.object(config, "HTML_PATH", doc / "index.html"):
+         patch.object(config, "HTML_PATH", doc / "index.html"), \
+         patch.object(scco_chart, "DOCS_DIR", doc), \
+         patch.object(scco_chart, "HTML_PATH", doc / "index.html"):
         yield tmp_path
 
 
@@ -60,6 +64,17 @@ class TestCalcRatio:
         anchor = d["copper"] / 4.2 * 900 * 1e8
         for mult, key in [(1.08, "p_safe"), (1.18, "p_watch"), (1.28, "p_hot")]:
             assert abs(r[key] - mult * anchor / d["shares"]) < 0.01
+
+    def test_string_input(self):
+        """calculate_ratio 应能处理字符串数值 (CSV 读取场景)."""
+        d = {"copper": "6.229", "scco_close": "172.01", "shares": "773000000"}
+        r = calculate_ratio(d)
+        assert 0 < r["ratio"] < 5
+
+    def test_missing_shares(self):
+        d = {"copper": 6.229, "scco_close": 172.01}
+        with pytest.raises(KeyError):
+            calculate_ratio(d)
 
 
 # ── get_signal ──────────────────────────────
@@ -122,8 +137,10 @@ class TestIntraCSV:
 # ── 回测 ────────────────────────────────────
 
 class TestBacktest:
-    def _mk(self, n=50):
-        import random; random.seed(0)
+    @staticmethod
+    def _mk(n=50):
+        import random
+        random.seed(0)
         return [{"date": f"2026-{i//30+1:02d}-{(i%30)+1:02d}",
                  "scco_close": str(round(170 + random.uniform(-5, 5), 2)),
                  "ratio": str(round(random.uniform(0.8, 1.4), 4))} for i in range(n)]
@@ -164,10 +181,15 @@ class TestHTML:
         j = json.loads(build_chart_json([], sample_data, sample_ratio))
         assert "data" in j and "layout" in j and "config" in j
 
-    def test_history_chart_json(self, tmp_workspace, sample_data, sample_ratio):
-        from scco_monitor.chart import build_history_chart_json
+    def test_history_chart_json(self):
         j = json.loads(build_history_chart_json([]))
-        assert j is None or j == "null"
+        assert j is None
+
+    def test_history_chart_json_with_data(self, sample_data, sample_ratio):
+        row = {**sample_data, **sample_ratio}
+        with patch.object(config, "DAYS_HISTORICAL", 60):
+            j = json.loads(build_history_chart_json([row, row]))
+        assert isinstance(j, dict)
 
 
 # ── fetch_market_data ───────────────────────
@@ -183,14 +205,15 @@ class TestFetch:
                                                   "Close": [172], "Volume": [1_000_000]}, index=idx)
         ms.info = {"sharesOutstanding": 773_000_000}
         r = fetch_market_data()
+        assert r is not None
         assert r["copper"] == 6.229 and r["scco_close"] == 172.0
         assert r["date"] == "2026-07-02"
 
     @patch("scco_monitor.fetcher.yf.Ticker")
-    def test_empty(self, mock_t):
+    def test_non_trading_day(self, mock_t):
+        """非交易日返回 None (而不是抛异常)."""
         mock_t.return_value.history.return_value = pd.DataFrame()
-        with pytest.raises(FetchError):
-            fetch_market_data()
+        assert fetch_market_data() is None
 
     @patch("scco_monitor.fetcher.yf.Ticker")
     def test_fallback_shares(self, mock_t):
