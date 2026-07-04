@@ -158,7 +158,7 @@ class TestHTML:
         row = {**sample_data, **sample_ratio}
         build_html([row], sample_intraday, sample_data, sample_ratio)
         html = config.HTML_PATH.read_text()
-        assert "SCCO" in html and "相关性系数" in html
+        assert "SCCO" in html and "Correlation" in html
 
     def test_chart_json(self, sample_data, sample_ratio):
         j = json.loads(build_chart_json([], sample_data, sample_ratio))

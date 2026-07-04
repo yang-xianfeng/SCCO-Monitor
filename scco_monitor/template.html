@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SCCO · 相关性系数</title>
+<title>SCCO Monitor · Correlation</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
 :root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#c9d1d9;--sec:#8b949e;--muted:#484f58;--safe:#26a69a;--watch:#ffa726;--hot:#ff7043;--danger:#ef5350;--accent:#58a6ff;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -11,33 +11,36 @@
 html{font-size:14px}
 body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5}
 .container{max-width:1200px;margin:0 auto;padding:20px 16px}
-.header{display:flex;justify-content:space-between;align-items:center;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.header h1{font-size:18px;font-weight:600}
+.header{text-align:center;padding:0 0 14px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.header h1{font-size:16px;font-weight:600;letter-spacing:.3px}
 .header h1 span{color:var(--sec);font-weight:400}
-.header-meta{text-align:right;font-size:11px;color:var(--sec)}
-.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;text-align:center}
-.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.stat-value{font-size:28px;font-weight:700;line-height:1.2}
-.stat-value.safe{color:var(--safe)}
-.stat-value.watch{color:var(--watch)}
-.stat-value.hot{color:var(--hot)}
-.stat-value.danger{color:var(--danger)}
-.tag{display:inline-block;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:600;margin-top:6px}
+.header-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.stats{display:flex;justify-content:center;gap:16px;margin-bottom:14px}
+.stat{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
+.stat .l{font-size:11px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:.3px}
+.stat .v{font-size:16px;font-weight:700}
+.stat .v.safe{color:var(--safe)}
+.stat .v.watch{color:var(--watch)}
+.stat .v.hot{color:var(--hot)}
+.stat .v.danger{color:var(--danger)}
+.tag{display:inline-block;padding:1px 8px;border-radius:3px;font-size:10px;font-weight:600;margin-left:4px}
 .tag.safe{background:rgba(38,166,154,.15);color:var(--safe);border:1px solid rgba(38,166,154,.3)}
 .tag.watch{background:rgba(255,167,38,.15);color:var(--watch);border:1px solid rgba(255,167,38,.3)}
 .tag.hot{background:rgba(255,112,67,.15);color:var(--hot);border:1px solid rgba(255,112,67,.3)}
 .tag.danger{background:rgba(239,83,80,.15);color:var(--danger);border:1px solid rgba(239,83,80,.3)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;margin-bottom:14px}
-.chart-wrap .title{font-size:12px;font-weight:600;color:var(--sec);padding:6px 10px 0}
+.chart-wrap .title{font-size:11px;font-weight:600;color:var(--sec);padding:5px 10px 0;display:flex;justify-content:space-between;align-items:center}
+.chart-wrap .title .badge{font-size:10px;font-weight:400;color:var(--muted);font-family:Consolas,monospace;letter-spacing:.5px}
+.chart-wrap .title .badge::before{content:"📅 ";font-size:9px}
 #chart{height:360px}
 #history-chart{height:400px}
 .footer{border-top:1px solid var(--border);padding:12px 0;display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
 .footer a{color:var(--sec);text-decoration:none}
 .footer a:hover{color:var(--accent)}
 @media(max-width:768px){
-  .stats-row{grid-template-columns:1fr}
-  .header{flex-direction:column;align-items:flex-start;gap:6px}
+  .stats{flex-wrap:wrap;gap:8px}
+  .stat{padding:6px 10px}
+  .stat .v{font-size:14px}
   #chart{height:300px}#history-chart{height:340px}
 }
 </style>
@@ -46,38 +49,41 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 <div class="container">
 
 <header class="header">
-  <div><h1>SCCO <span>· 相关性系数</span></h1></div>
-  <div class="header-meta">%(updated)s</div>
+  <h1>SCCO <span>· Correlation Monitor</span></h1>
+  <div class="header-meta">%(updated)s ET</div>
 </header>
 
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-label">铜价</div>
-    <div class="stat-value">$%(copper).4f</div>
+<div class="stats">
+  <div class="stat">
+    <span class="l" style="color:#ffa726">Cu</span>
+    <span class="v">$%(copper).4f</span>
   </div>
-  <div class="stat-card">
-    <div class="stat-label">SCCO 股价</div>
-    <div class="stat-value">$%(scco_close).2f</div>
+  <div class="stat">
+    <span class="l" style="color:#58a6ff">SCCO</span>
+    <span class="v">$%(scco_close).2f</span>
   </div>
-  <div class="stat-card">
-    <div class="stat-label">相关性系数</div>
-    <div class="stat-value %(sig_key)s">%(ratio).4f</div>
-    <div class="tag %(sig_key)s">%(sig_tag)s</div>
+  <div class="stat">
+    <span class="l" style="color:#26a69a">Corr</span>
+    <span class="v %(sig_key)s">%(ratio).4f</span>
+    <span class="tag %(sig_key)s">%(sig_tag)s</span>
   </div>
 </div>
 
 <div class="chart-wrap">
-  <div class="title">日内走势 · %(intraday_interval)s</div>
+  <div class="title">
+    <span>Intraday · %(intraday_interval)s</span>
+    <span class="badge">%(trade_date)s</span>
+  </div>
   <div id="chart"></div>
 </div>
 
 <div class="chart-wrap">
-  <div class="title">历史走势 · %(days_historical)s 日</div>
+  <div class="title">History · %(days_historical)dD</div>
   <div id="history-chart"></div>
 </div>
 
 <footer class="footer">
-  <div>Data: Yahoo Finance · 每交易日更新</div>
+  <div>Yahoo Finance · US Market</div>
   <div><a href="%(github_url)s">GitHub</a> · <a href="%(pages_url)s">Pages</a></div>
 </footer>
 
@@ -85,11 +91,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 
 <script>
 (function(){var c=%(chart_json)s;if(!c||!c.data||!c.data[0]||!c.data[0].x||!c.data[0].x.length){
-  document.getElementById('chart').innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--muted)"><p>暂无日内数据</p></div>';return}
+  document.getElementById('chart').innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--muted)"><p>No intraday data</p></div>';return}
   Plotly.react('chart',c.data,c.layout,c.config)})();
 
 (function(){var c=%(history_chart_json)s;if(!c||c==='null'){
-  document.getElementById('history-chart').innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><p>历史数据不足</p></div>';return}
+  document.getElementById('history-chart').innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><p>Insufficient history</p></div>';return}
   Plotly.react('history-chart',c.data,c.layout,c.config)})();
 
 window.addEventListener('resize',function(){

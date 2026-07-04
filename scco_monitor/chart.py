@@ -9,6 +9,7 @@ Plotly 深色主题, 包含:
 import json
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from .config import (
     ANCHOR_COPPER_BASE,
@@ -24,6 +25,7 @@ from .config import (
 from .core import get_signal
 
 _HERE = Path(__file__).parent
+_ET = ZoneInfo("America/New_York")
 
 
 def _load_template() -> str:
@@ -89,7 +91,8 @@ def build_chart_json(intraday, cur_data, cur_ratio) -> str:
         "font": {"color": "#c9d1d9", "family": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif", "size": 11},
         "margin": {"l": 4, "r": 4, "t": 28, "b": 28},
         "xaxis": {"domain": [0, 1], "gridcolor": "#21262d", "zerolinecolor": "#21262d",
-                  "type": "date", "rangeslider": {"visible": False}},
+                  "type": "date", "rangeslider": {"visible": False},
+                  "tickformat": "%H:%M", "hoverformat": "%Y/%m/%d %H:%M"},
         "yaxis": {"domain": [0.25, 1], "gridcolor": "#21262d", "zerolinecolor": "#21262d",
                   "title": {"text": "价格", "font": {"color": "#c9d1d9"}}, "side": "right", "automargin": True},
         "yaxis2": {"domain": [0, 0.2], "gridcolor": "#21262d", "zerolinecolor": "#21262d",
@@ -113,19 +116,22 @@ def build_history_chart_json(daily) -> str:
     scco = [float(r["scco_close"]) for r in daily_slice]
     ratio = [float(r.get("ratio", 0)) for r in daily_slice]
 
+    labels = ["Cu", "SCCO", "Corr"]
+    colors = ["#ffa726", "#58a6ff", "#26a69a"]
+
     data = [
-        {"type": "scatter", "x": dates, "y": copper, "name": "Cu 铜",
-         "mode": "lines", "line": {"color": "#ffa726", "width": 2},
+        {"type": "scatter", "x": dates, "y": copper, "name": "Cu",
+         "mode": "lines", "line": {"color": colors[0], "width": 2},
          "yaxis": "y", "xaxis": "x",
-         "hovertemplate": "%{x}<br>Cu: $%{y:.4f}<extra></extra>"},
+         "hovertemplate": "%{x|%Y%m%d}<br>Cu: $%{y:.4f}<extra></extra>"},
         {"type": "scatter", "x": dates, "y": scco, "name": "SCCO",
-         "mode": "lines", "line": {"color": "#58a6ff", "width": 2},
+         "mode": "lines", "line": {"color": colors[1], "width": 2},
          "yaxis": "y3", "xaxis": "x",
-         "hovertemplate": "%{x}<br>SCCO: $%{y:.2f}<extra></extra>"},
-        {"type": "scatter", "x": dates, "y": ratio, "name": "系数",
-         "mode": "lines", "line": {"color": "#26a69a", "width": 2},
+         "hovertemplate": "%{x|%Y%m%d}<br>SCCO: $%{y:.2f}<extra></extra>"},
+        {"type": "scatter", "x": dates, "y": ratio, "name": "Corr",
+         "mode": "lines", "line": {"color": colors[2], "width": 2},
          "yaxis": "y2", "xaxis": "x2",
-         "hovertemplate": "%{x}<br>系数: %{y:.4f}<extra></extra>"},
+         "hovertemplate": "%{x|%Y%m%d}<br>Corr: %{y:.4f}<extra></extra>"},
     ]
 
     layout = {
@@ -134,12 +140,13 @@ def build_history_chart_json(daily) -> str:
         "margin": {"l": 48, "r": 72, "t": 12, "b": 48},
         "grid": {"rows": 2, "columns": 1, "pattern": "independent"},
         "xaxis": {"domain": [0, 1], "showticklabels": False, "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date"},
-        "xaxis2": {"domain": [0, 1], "matches": "x", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date"},
-        "yaxis": {"title": {"text": "Cu", "font": {"color": "#ffa726", "size": 14}}, "side": "left",
+        "xaxis2": {"domain": [0, 1], "matches": "x", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "type": "date",
+                   "tickformat": "%Y%m%d"},
+        "yaxis": {"title": {"text": "Cu ($)", "font": {"color": "#ffa726", "size": 14}}, "side": "left",
                   "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
-        "yaxis3": {"title": {"text": "SCCO", "font": {"color": "#58a6ff", "size": 14}}, "side": "right",
+        "yaxis3": {"title": {"text": "SCCO ($)", "font": {"color": "#58a6ff", "size": 14}}, "side": "right",
                     "overlaying": "y", "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
-        "yaxis2": {"title": {"text": "系数", "font": {"color": "#26a69a", "size": 14}}, "side": "right",
+        "yaxis2": {"title": {"text": "Corr", "font": {"color": "#26a69a", "size": 14}}, "side": "right",
                     "gridcolor": "#21262d", "zerolinecolor": "#21262d", "automargin": True},
         "legend": {"orientation": "h", "y": 1.02, "x": 0, "font": {"size": 10},
                    "bgcolor": "rgba(0,0,0,0)"},
@@ -155,14 +162,17 @@ def build_html(daily, intraday, cur_data, cur_ratio) -> None:
     Path(DOCS_DIR).mkdir(parents=True, exist_ok=True)
 
     sig_key, sig_tag = get_signal(cur_ratio["ratio"])
-    now = datetime.now()
+    now = datetime.now(_ET)
 
     chart_json = build_chart_json(intraday, cur_data, cur_ratio)
     history_chart_json = build_history_chart_json(daily)
 
+    trade_date = daily[-1]["date"] if daily else now.strftime("%Y-%m-%d")
+    trade_date_compact = trade_date.replace("-", "")
+
     template = _load_template()
     html = template % {
-        "updated": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "updated": now.strftime("%Y-%m-%d %H:%M"),
         "sig_key": sig_key,
         "sig_tag": sig_tag,
         "ratio": cur_ratio["ratio"],
@@ -174,6 +184,7 @@ def build_html(daily, intraday, cur_data, cur_ratio) -> None:
         "pages_url": PAGES_URL,
         "intraday_interval": INTRADAY_INTERVAL,
         "days_historical": DAYS_HISTORICAL,
+        "trade_date": trade_date_compact,
     }
     HTML_PATH.write_text(html, encoding="utf-8")
     print(f"  HTML 生成 (日内 {len(intraday)} 根 · 历史 {len(daily)} 日)")
