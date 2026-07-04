@@ -15,8 +15,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .header h1{font-size:16px;font-weight:600;letter-spacing:.3px}
 .header h1 span{color:var(--sec);font-weight:400}
 .header-meta{font-size:10px;color:var(--muted);margin-top:2px}
-.stats{display:flex;justify-content:center;gap:16px;margin-bottom:14px}
-.stat{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
+.stats{display:flex;gap:16px;margin-bottom:14px}
+.stat{flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px}
 .stat .l{font-size:11px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:.3px}
 .stat .v{font-size:16px;font-weight:700}
 .stat .v.safe{color:var(--safe)}
@@ -50,7 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 
 <header class="header">
   <h1>SCCO <span>· Correlation Monitor</span></h1>
-  <div class="header-meta">2026-07-04 01:19 ET</div>
+  <div class="header-meta">2026-07-04 01:45 ET</div>
 </header>
 
 <div class="stats">
@@ -70,16 +70,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 </div>
 
 <div class="chart-wrap">
+  <div class="title">History · 60D</div>
+  <div id="history-chart"></div>
+</div>
+
+<div class="chart-wrap">
   <div class="title">
     <span>Intraday · 15m</span>
     <span class="badge">20260704</span>
   </div>
   <div id="chart"></div>
-</div>
-
-<div class="chart-wrap">
-  <div class="title">History · 60D</div>
-  <div id="history-chart"></div>
 </div>
 
 <footer class="footer">
