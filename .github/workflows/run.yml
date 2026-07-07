@@ -25,7 +25,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
-  actions: read
+  actions: write
 
 concurrency:
   group: pages
@@ -47,8 +47,15 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Run monitor
-        run: python main.py
+      - name: Run monitor (retry 3x)
+        run: |
+          for i in {1..3}; do
+            python main.py && exit 0
+            echo "重试 $i/3 失败，5秒后重试..."
+            sleep 5
+          done
+          echo "3次均失败"
+          exit 1
         env:
           THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
           THRESHOLD_WATCH: ${{ vars.THRESHOLD_WATCH }}
@@ -75,3 +82,12 @@ jobs:
         with:
           commit_message: "auto: update data & chart [skip ci]"
           file_pattern: data/ docs/
+
+      - name: Cleanup old runs (keep last 5)
+        if: always()
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 5

@@ -84,7 +84,12 @@ python main.py
 > | `*/15 16-18` | 12:00-14:55 | 11:00-13:55 | 盘中 |
 > | `*/5 19-20` | 15:00-16:55 | 14:00-15:55 | 收盘最后 1h+ |
 
-### 4. 访问
+### 4. 失败通知
+
+Workflow 运行失败时，默认会发送通知邮件到 GitHub 账号绑定邮箱。
+如需关闭：**GitHub Settings → Notifications → Actions** 取消勾选。
+
+### 5. 访问
 
 `https://<用户名>.github.io/SCCO-Monitor/`
 
