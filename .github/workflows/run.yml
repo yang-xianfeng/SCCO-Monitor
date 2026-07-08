@@ -74,6 +74,14 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deployment
+        run: |
+          echo "📋 Deployment Log"
+          echo "════════════════════════════════════════"
+          ls -lah docs/
+          echo "════════════════════════════════════════"
+        if: always()
+
+      - name: Deploy Pages (actions)
         uses: actions/deploy-pages@v5
 
       - name: Commit data back to repo
@@ -83,11 +91,11 @@ jobs:
           commit_message: "auto: update data & chart [skip ci]"
           file_pattern: data/ docs/
 
-      - name: Cleanup old runs (keep last 5)
+      - name: Cleanup old runs (keep last 50)
         if: always()
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ github.token }}
           repository: ${{ github.repository }}
           retain_days: 0
-          keep_minimum_runs: 5
+          keep_minimum_runs: 50
