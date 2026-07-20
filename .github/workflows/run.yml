@@ -6,12 +6,23 @@ on:
     paths-ignore:
       - 'data/**'
       - 'docs/**'
+  # ═══════════════════════════════════════════════════════════════
+  #  GitHub Actions cron 运行在 UTC，不支持时区
+  #  美股交易: Mon-Fri 9:30-16:00 ET
+  #  夏令时 EDT = UTC-4  /  冬令时 EST = UTC-5
+  #
+  #  单段宽 cron：main.py 的 check_schedule() 按 ET 调度表精确控制
+  #  UTC 11-21 覆盖 EDT 7:00-17:55 / EST 6:00-16:55
+  #  非交易日的运行由 main.py 自动兜底 (返回 None, 不写 CSV)
+  # ═══════════════════════════════════════════════════════════════
   schedule:
-    - cron: '*/5 11-21 * * 1-5'
+    - cron: '*/5 11-21 * * 1-5'   # 调度逻辑全在 Python scheduler.py
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
   actions: write
 
 concurrency:
@@ -21,6 +32,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +74,21 @@ jobs:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Setup Pages
+        if: steps.run.outputs.deploy == 'true'
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        if: steps.run.outputs.deploy == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./docs
+
+      - name: Deploy Pages
+        id: deployment
+        if: steps.run.outputs.deploy == 'true'
+        uses: actions/deploy-pages@v5
 
       - name: Commit data & HTML
         if: steps.run.outputs.deploy == 'true'
