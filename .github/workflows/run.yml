@@ -55,18 +55,25 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -r requirements.txt
 
-      - name: Run monitor
+      - name: Run monitor (retry until success)
         id: run
         run: |
-          for i in $(seq 1 30); do
+          MAX_RETRIES=60
+          INTERVAL=10
+          echo "开始重试: 最多 ${MAX_RETRIES} 次, 间隔 ${INTERVAL}s, 总计 $((MAX_RETRIES * INTERVAL / 60)) 分钟"
+          for i in $(seq 1 $MAX_RETRIES); do
             rm -f data/.generated
             .venv/bin/python main.py
             if [ -f data/.generated ]; then
               echo "deploy=true" >> "$GITHUB_OUTPUT"
-              break
+              echo "第 ${i} 次尝试成功"
+              exit 0
             fi
-            sleep 2
+            echo "第 ${i}/${MAX_RETRIES} 次未生成数据, ${INTERVAL}s 后重试..."
+            sleep $INTERVAL
           done
+          echo "所有 ${MAX_RETRIES} 次重试均失败"
+          exit 1
         env:
           THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
           THRESHOLD_WATCH: ${{ vars.THRESHOLD_WATCH }}
