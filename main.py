@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -12,10 +13,26 @@ from scco_monitor.config import DAYS_HISTORICAL, PAGES_URL, TIMEZONE
 from scco_monitor.core import calculate_ratio, get_signal
 from scco_monitor.fetcher import fetch_daily_data, fetch_intraday_data, fetch_market_data
 from scco_monitor.notifier import push
-from scco_monitor.scheduler import check_schedule
+from scco_monitor.scheduler import check_schedule, _SCHEDULE_ET
 from scco_monitor.storage import append_csv, read_csv, row_to_numeric
 
 _ET = ZoneInfo(TIMEZONE)
+MAX_WAIT_SECONDS = 10 * 60
+
+
+def _seconds_until_next_slot(dt: datetime) -> int | None:
+    """计算距离下一个调度槽位的秒数，超出最大等待返回 None."""
+    if dt.weekday() >= 5:
+        return None
+    total = dt.hour * 60 + dt.minute
+    for slot_h, slot_m in _SCHEDULE_ET:
+        slot_total = slot_h * 60 + slot_m
+        if slot_total > total:
+            wait_minutes = slot_total - total
+            if wait_minutes * 60 <= MAX_WAIT_SECONDS:
+                return wait_minutes * 60
+            return None
+    return None
 
 
 def _backfill_history() -> list[dict]:
@@ -44,9 +61,18 @@ def main() -> None:
 
     sr = check_schedule()
     if not sr.should_run:
-        print(f"  当前 ET {now_et.strftime('%H:%M')} 不在调度窗口内，跳过")
-        print("=" * 42)
-        return
+        wait_seconds = _seconds_until_next_slot(now_et)
+        if wait_seconds is None:
+            print(f"  当前 ET {now_et.strftime('%H:%M')} 不在调度窗口内，且无后续槽位（周末或收盘后），跳过")
+            print("=" * 42)
+            return
+        print(f"  当前 ET {now_et.strftime('%H:%M')} 不在调度窗口内，等待 {wait_seconds // 60} 分 {wait_seconds % 60} 秒至下一槽位...")
+        time.sleep(wait_seconds)
+        sr = check_schedule()
+        if not sr.should_run:
+            print(f"  等待后仍不在调度窗口内，跳过")
+            print("=" * 42)
+            return
 
     rows = _backfill_history()
     print(f"\n[1] 历史数据: {len(rows)} 日")

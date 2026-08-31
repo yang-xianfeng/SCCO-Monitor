@@ -57,9 +57,10 @@ jobs:
 
       - name: Run monitor (retry until success)
         id: run
+        continue-on-error: true
         run: |
-          MAX_RETRIES=60
-          INTERVAL=10
+          MAX_RETRIES=120
+          INTERVAL=15
           echo "开始重试: 最多 ${MAX_RETRIES} 次, 间隔 ${INTERVAL}s, 总计 $((MAX_RETRIES * INTERVAL / 60)) 分钟"
           for i in $(seq 1 $MAX_RETRIES); do
             rm -f data/.generated
