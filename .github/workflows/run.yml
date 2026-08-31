@@ -11,12 +11,14 @@ on:
   #  美股交易: Mon-Fri 9:30-16:00 ET
   #  夏令时 EDT = UTC-4  /  冬令时 EST = UTC-5
   #
-  #  单段宽 cron：main.py 的 check_schedule() 按 ET 调度表精确控制
-  #  UTC 11-21 覆盖 EDT 7:00-17:55 / EST 6:00-16:55
-  #  非交易日的运行由 main.py 自动兜底 (返回 None, 不写 CSV)
-  # ═══════════════════════════════════════════════════════════════
+  #  cron 在有效 UTC 窗口 (13-21) 每 5 分钟触发，Python check_schedule()
+  #  按 ET 调度表精确过滤 — 槽位时刻由 cron 自然命中，无需 main.py 等待。
+  #  - EDT: ET 9:00-16:55 = UTC 13:00-20:55
+  #  - EST: ET 9:00-16:55 = UTC 14:00-21:55
+  #  非槽位 / 非交易日的 run -> main.py 快速 exit 0 (不建 .generated, 不部署)
+  #  ═══════════════════════════════════════════════════════════════
   schedule:
-    - cron: '*/5 11-21 * * 1-5'   # 调度逻辑全在 Python scheduler.py
+    - cron: '*/5 13-21 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -25,9 +27,10 @@ permissions:
   id-token: write
   actions: write
 
+# cancel-in-progress: 新 cron 到来时取消旧排队 run，避免堆叠阻塞最新调度
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -55,25 +58,34 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -r requirements.txt
 
-      - name: Run monitor (retry until success)
+      - name: Run monitor
         id: run
-        continue-on-error: true
         run: |
-          MAX_RETRIES=120
-          INTERVAL=15
-          echo "开始重试: 最多 ${MAX_RETRIES} 次, 间隔 ${INTERVAL}s, 总计 $((MAX_RETRIES * INTERVAL / 60)) 分钟"
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            # push / workflow_dispatch: 立即部署仓库现有 docs（数据已提交）
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::手动/推送触发：直接部署现有页面"
+            exit 0
+          fi
+          # cron: 严格按 ET 调度表，由 main.py 生成后才部署
+          MAX_RETRIES=30
+          INTERVAL=10
+          echo "运行监控: 异常时最多重试 ${MAX_RETRIES} 次 (间隔 ${INTERVAL}s)"
           for i in $(seq 1 $MAX_RETRIES); do
             rm -f data/.generated
-            .venv/bin/python main.py
-            if [ -f data/.generated ]; then
-              echo "deploy=true" >> "$GITHUB_OUTPUT"
-              echo "第 ${i} 次尝试成功"
+            if .venv/bin/python main.py; then
+              if [ -f data/.generated ]; then
+                echo "deploy=true" >> "$GITHUB_OUTPUT"
+                echo "::notice::第 ${i} 次成功生成数据，执行部署"
+                exit 0
+              fi
+              echo "::notice::非调度槽位/非交易日，正常跳过部署"
               exit 0
             fi
-            echo "第 ${i}/${MAX_RETRIES} 次未生成数据, ${INTERVAL}s 后重试..."
+            echo "第 ${i}/${MAX_RETRIES} 次运行异常, ${INTERVAL}s 后重试..."
             sleep $INTERVAL
           done
-          echo "所有 ${MAX_RETRIES} 次重试均失败"
+          echo "所有 ${MAX_RETRIES} 次重试均异常"
           exit 1
         env:
           THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
@@ -82,6 +94,13 @@ jobs:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Commit data & HTML
+        if: steps.run.outputs.deploy == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "auto: update data & chart [skip ci]"
+          file_pattern: data/ docs/
 
       - name: Setup Pages
         if: steps.run.outputs.deploy == 'true'
@@ -97,13 +116,6 @@ jobs:
         id: deployment
         if: steps.run.outputs.deploy == 'true'
         uses: actions/deploy-pages@v5
-
-      - name: Commit data & HTML
-        if: steps.run.outputs.deploy == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "auto: update data & chart [skip ci]"
-          file_pattern: data/ docs/
 
       - name: Cleanup old runs (keep last 50)
         if: always()
