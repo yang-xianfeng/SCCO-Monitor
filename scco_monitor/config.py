@@ -65,3 +65,7 @@ INTRADAY_INTERVAL = os.getenv("INTRADAY_INTERVAL", "15m")
 INTRADAY_PERIOD = os.getenv("INTRADAY_PERIOD", "5d")
 
 # ── 调度 (cron 见 .github/workflows/run.yml) ──────
+# 迟到容忍缓冲(分钟): 吸收 GitHub Actions cron 启动延迟。
+# 调度槽位自身不修改，仅允许在槽位后 BUFFER 分钟内仍视为该槽位触发。
+# 槽位间隔最小 5 分钟，故 BUFFER 恒 < 5，避免相邻槽位重叠。
+SCHEDULE_BUFFER_MINUTES = _env_int("SCHEDULE_BUFFER_MINUTES", 4)

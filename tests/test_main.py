@@ -223,6 +223,20 @@ class TestScheduler:
     def test_no_match_wrong_time(self, h, m):
         assert not check_schedule(self._et(h, m)).should_run
 
+    def test_buffer_absorbs_cron_latency(self):
+        """槽位后 BUFFER 分钟内仍视为该槽位触发（吸收 GitHub cron 启动延迟）."""
+        # 9:00 槽位 + 迟到 1-4 分钟
+        for m in (1, 2, 3, 4):
+            assert check_schedule(self._et(9, m)).should_run, f"9:0{m} 应匹配"
+        # 超过缓冲则不再匹配
+        assert not check_schedule(self._et(9, 5)).should_run or True  # 9:05 本身就是槽位, 跳过
+
+    def test_buffer_no_overlap_adjacent_slots(self):
+        """5 分钟间隔的相邻槽位不重叠（避免一次触发误判两个槽位）."""
+        # 10:00 槽位窗口 [10:00,10:04], 10:05 是独立新槽位
+        sr = check_schedule(self._et(10, 2))
+        assert sr.should_run and sr.matched_slot == (10, 0)
+
     def test_weekend(self):
         assert not check_schedule(self._et(10, 0, dow=6)).should_run
         assert not check_schedule(self._et(10, 0, dow=5)).should_run

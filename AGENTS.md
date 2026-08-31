@@ -84,10 +84,18 @@ git add -A && git commit -m "scope: concise description" && git pull --rebase &&
 ## Workflow (.github/workflows/run.yml)
 
 - **cron 永远 UTC**，与 GitHub 账号地区无关
-- 美股交易日 Mon-Fri 9:30-16:00 ET，由 `scheduler.py` 精确控制
-- **Retry**: `main.py` 在单次 trigger 内重试 30 次 × 2s，默认 `.generated` 为止
-- **Deploy**: `data/` `docs/` 直接 `commit` → GitHub Pages 自动构建（无 deploy-pages 步骤）
+- **cron**: `*/5 13-21 * * 1-5`（覆盖 EDT/EST 有效交易时段，每 5 分钟触发）
+- **调度**: `scheduler.py` 的 `check_schedule()` 匹配 `[槽位, 槽位+BUFFER]` 窗口，`BUFFER=4`（`config.SCHEDULE_BUFFER_MINUTES`），吸收 GitHub cron 启动延迟
+- **Retry**: cron 周期内 5 分钟时间预算持续重试 main.py，非槽位/异常均继续尝试；未命中则退出（不报失败）
+- **Deploy**: `data/` `docs/` 先 `git-auto-commit`（`[skip ci]`）→ `configure-pages` + `upload-pages-artifact` + `deploy-pages`
+- **push / workflow_dispatch**: 直接部署仓库现有 `docs/`（数据已提交的场景）
 - **Cleanup**: 每次运行后保留最近 50 条 workflow runs
+
+### 时间触发约束（不可违反）
+
+1. **绝不修改时间槽** `scco_monitor/scheduler.py::_SCHEDULE_ET`（这是唯一权威调度依据）
+2. **严格按时间表执行，每个小时至少执行一次**（槽位覆盖 9:00-16:55，每小时都有槽位）
+3. **少发失败邮件，多多尝试部署**：cron 周期内靠 BUFFER + 持续重试提高命中率；未命中槽位一律 `exit 0` 不触发失败邮件
 
 ### ET → 北京时间换算（以 EDT 夏令时为例）
 

@@ -1,12 +1,20 @@
-"""调度器 — 判断当前 ET 时间是否在预设调度窗口内."""
+"""调度器 — 判断当前 ET 时间是否在预设调度窗口内.
+
+时间槽位(_SCHEDULE_ET)为唯一权威调度依据，绝不修改。
+check_schedule 匹配 [槽位, 槽位+BUFFER] 窗口，用迟到容忍吸收
+GitHub Actions cron 的启动延迟（否则延迟 1 分钟即漏触发）。
+"""
 
 from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from .config import TIMEZONE
+from .config import SCHEDULE_BUFFER_MINUTES, TIMEZONE
 
 _ET = ZoneInfo(TIMEZONE)
+
+# 迟到容忍缓冲(分钟)。槽位间隔最小 5 分钟，故恒 < 5，相邻槽位不重叠。
+BUFFER_MINUTES = SCHEDULE_BUFFER_MINUTES
 
 _SCHEDULE_ET: list[tuple[int, int]] = [
     (9, 0), (9, 5), (9, 10), (9, 15), (9, 20), (9, 25),
@@ -30,6 +38,10 @@ class ScheduleResult:
 
 
 def check_schedule(dt: datetime | None = None) -> ScheduleResult:
+    """当前 ET 时间落在 [槽位, 槽位+BUFFER] 内则返回应执行.
+
+    槽位保持精确；缓冲仅用于吸收 cron 启动延迟，避免漏触发。
+    """
     if dt is None:
         dt = datetime.now(_ET)
     if dt.weekday() >= 5:
@@ -41,7 +53,7 @@ def check_schedule(dt: datetime | None = None) -> ScheduleResult:
         [m for _, m in _SCHEDULE_ET],
         _SLOTS_MINUTES,
     ):
-        if total == slot_total:
+        if slot_total <= total <= slot_total + BUFFER_MINUTES:
             return ScheduleResult(should_run=True, matched_slot=(slot_h, slot_m))
 
     return ScheduleResult(should_run=False, matched_slot=None)

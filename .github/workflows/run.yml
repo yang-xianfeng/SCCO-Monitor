@@ -12,10 +12,11 @@ on:
   #  夏令时 EDT = UTC-4  /  冬令时 EST = UTC-5
   #
   #  cron 在有效 UTC 窗口 (13-21) 每 5 分钟触发，Python check_schedule()
-  #  按 ET 调度表精确过滤 — 槽位时刻由 cron 自然命中，无需 main.py 等待。
+  #  匹配 [槽位, 槽位+BUFFER] 窗口 — cron 启动延迟由 BUFFER 吸收，
+  #  槽位自身不修改，且每周期在工作流内持续重试以最大化部署命中率。
   #  - EDT: ET 9:00-16:55 = UTC 13:00-20:55
   #  - EST: ET 9:00-16:55 = UTC 14:00-21:55
-  #  非槽位 / 非交易日的 run -> main.py 快速 exit 0 (不建 .generated, 不部署)
+  #  未命中槽位窗口的 run -> 时间预算内重试后退出 (不报失败邮件)
   #  ═══════════════════════════════════════════════════════════════
   schedule:
     - cron: '*/5 13-21 * * 1-5'
@@ -67,26 +68,28 @@ jobs:
             echo "::notice::手动/推送触发：直接部署现有页面"
             exit 0
           fi
-          # cron: 严格按 ET 调度表，由 main.py 生成后才部署
-          MAX_RETRIES=30
-          INTERVAL=10
-          echo "运行监控: 异常时最多重试 ${MAX_RETRIES} 次 (间隔 ${INTERVAL}s)"
-          for i in $(seq 1 $MAX_RETRIES); do
+          # cron: 严格按 ET 调度表生成后部署。
+          # cron 可能比计划时刻提前/延后启动，故在时间预算内持续重试，
+          # 直到墙钟进入某槽位的 [槽位, 槽位+BUFFER] 窗口 → main.py 生成 → 部署。
+          # 非槽位不算失败(继续尝试)，异常同样继续尝试，最大化部署命中率。
+          BUDGET=$(($(date +%s) + 300))   # 5 分钟时间预算
+          INTERVAL=15
+          while [ "$(date +%s)" -lt "$BUDGET" ]; do
             rm -f data/.generated
             if .venv/bin/python main.py; then
               if [ -f data/.generated ]; then
                 echo "deploy=true" >> "$GITHUB_OUTPUT"
-                echo "::notice::第 ${i} 次成功生成数据，执行部署"
+                echo "::notice::成功生成数据，执行部署"
                 exit 0
               fi
-              echo "::notice::非调度槽位/非交易日，正常跳过部署"
-              exit 0
+              echo "::notice::尚未进入槽位窗口，继续重试..."
+            else
+              echo "::warning::main.py 运行异常，继续重试..."
             fi
-            echo "第 ${i}/${MAX_RETRIES} 次运行异常, ${INTERVAL}s 后重试..."
             sleep $INTERVAL
           done
-          echo "所有 ${MAX_RETRIES} 次重试均异常"
-          exit 1
+          echo "::notice::时间预算内未命中槽位窗口，本周期跳过部署（cron 将在 5 分钟后重试）"
+          exit 0
         env:
           THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
           THRESHOLD_WATCH: ${{ vars.THRESHOLD_WATCH }}
