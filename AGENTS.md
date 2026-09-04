@@ -84,7 +84,7 @@ build_html(daily, intraday, cur_data, ratio)
   3. **数据源为最高权威**：遇到紧急停市或未知休市时，yfinance 数据源无当日数据返回 `cur_data is None`，触发本地非交易日安全兜底（使用上一日数据，不写入新数据，标记 `[Offline]`），杜绝抛错中断。
 
 ### 4. Deployment Speed & Performance (部署性能与依赖极简)
-- **极速依赖管理**：CI 环境使用 `astral-sh/setup-uv@v5` 取代原生 pip，依赖安装由 30~50 秒骤降至 1~2 秒。
+- **极速与健壮依赖管理**：CI 环境使用 GitHub 官方 `actions/setup-python@v5` 配合内置 `cache: 'pip'`，在保证 100% 权限健壮性的前提下实现秒级依赖复用，杜绝第三方 Action 权限或外部受管环境冲突报错。
 - **快照式轻量行情**：`fetcher.py` 优先使用 `fast_info.shares` 获取股本（配合 `DEFAULT_SHARES` 兜底），严禁在高频盘中调用全量财务档案 `Ticker.info`，消除 3~8 秒慢请求及 429 限流风险。
 - **高频链路解耦**：历史 Runs 清理任务剥离至独立的周常 workflow (`cleanup.yml`)，避免在每 5 分钟的主监控流程中浪费 20~30 秒。
 
