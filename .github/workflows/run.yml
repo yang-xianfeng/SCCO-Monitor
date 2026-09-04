@@ -28,10 +28,10 @@ permissions:
   id-token: write
   actions: write
 
-# cancel-in-progress: 新 cron 到来时取消旧排队 run，避免堆叠阻塞最新调度
+# 排队部署，避免在部署过程中被新 run 意外中断
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -63,33 +63,39 @@ jobs:
         id: run
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
-            # push / workflow_dispatch: 立即部署仓库现有 docs（数据已提交）
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::手动/推送触发：直接部署现有页面"
-            exit 0
+            # push / workflow_dispatch: 强制执行监控并部署
+            export FORCE_RUN=1
           fi
-          # cron: 严格按 ET 调度表生成后部署。
-          # cron 可能比计划时刻提前/延后启动，故在时间预算内持续重试，
-          # 直到墙钟进入某槽位的 [槽位, 槽位+BUFFER] 窗口 → main.py 生成 → 部署。
-          # 非槽位不算失败(继续尝试)，异常同样继续尝试，最大化部署命中率。
-          BUDGET=$(($(date +%s) + 300))   # 5 分钟时间预算
-          INTERVAL=15
-          while [ "$(date +%s)" -lt "$BUDGET" ]; do
+
+          # 严格按照时间槽多次触发重试，起码重复 6-8 次直至成功
+          MAX_RETRIES=8
+          INTERVAL=10
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
             rm -f data/.generated
+            echo "::notice::[执行监控] 第 ${i}/${MAX_RETRIES} 次运行 main.py..."
             if .venv/bin/python main.py; then
               if [ -f data/.generated ]; then
                 echo "deploy=true" >> "$GITHUB_OUTPUT"
-                echo "::notice::成功生成数据，执行部署"
-                exit 0
+                echo "::notice::第 ${i} 次运行成功生成数据，执行部署"
+                SUCCESS=true
+                break
+              else
+                echo "::notice::当前非调度时段或该槽位今日已成功部署，跳过本次部署"
+                SUCCESS=true
+                break
               fi
-              echo "::notice::尚未进入槽位窗口，继续重试..."
             else
-              echo "::warning::main.py 运行异常，继续重试..."
+              echo "::warning::第 ${i}/${MAX_RETRIES} 次运行异常，${INTERVAL}s 后重试..."
+              sleep $INTERVAL
             fi
-            sleep $INTERVAL
           done
-          echo "::notice::时间预算内未命中槽位窗口，本周期跳过部署（cron 将在 5 分钟后重试）"
-          exit 0
+
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::所有 ${MAX_RETRIES} 次重试均异常失败"
+            exit 1
+          fi
         env:
           THRESHOLD_SAFE: ${{ vars.THRESHOLD_SAFE }}
           THRESHOLD_WATCH: ${{ vars.THRESHOLD_WATCH }}

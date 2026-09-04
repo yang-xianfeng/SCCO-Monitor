@@ -14,7 +14,13 @@ from scco_monitor.chart import build_chart_json, build_history_chart_json, build
 from scco_monitor.core import calculate_ratio, get_signal
 from scco_monitor.fetcher import FetchError, fetch_market_data
 from scco_monitor.models import Signal
-from scco_monitor.scheduler import check_schedule
+from scco_monitor.scheduler import (
+    check_schedule,
+    is_nyse_holiday,
+    is_scheduled_slot,
+    read_last_slot,
+    record_last_slot,
+)
 from scco_monitor.storage import append_csv, append_intraday_csv, read_csv, read_intraday_csv
 from scco_monitor.zone import scan_transitions as run_bt
 
@@ -48,6 +54,7 @@ def tmp_workspace(tmp_path):
     with patch.object(config, "DATA_DIR", d), patch.object(config, "DOCS_DIR", doc), \
          patch.object(config, "CSV_PATH", d / "history.csv"), \
          patch.object(config, "CSV_INTRADAY_PATH", d / "intraday.csv"), \
+         patch.object(config, "LAST_SLOT_PATH", d / ".last_slot"), \
          patch.object(config, "HTML_PATH", doc / "index.html"), \
          patch.object(scco_chart, "DOCS_DIR", doc), \
          patch.object(scco_chart, "HTML_PATH", doc / "index.html"):
@@ -202,44 +209,70 @@ class TestScheduler:
     def _et(self, h, m, dow=0):
         """创建 ET 时区的 datetime. dow: 0=Mon ... 6=Sun."""
         from datetime import timedelta
-        base = datetime(2026, 7, 6) + timedelta(days=dow)
+        base = datetime(2026, 7, 6) + timedelta(days=dow)  # 2026-07-06 为周一，非假日
         return base.replace(hour=h, minute=m, tzinfo=ZoneInfo("America/New_York"))
 
     @pytest.mark.parametrize("h,m", [
         (9, 0), (9, 5), (9, 10), (9, 15), (9, 20), (9, 25),
         (9, 30), (9, 55), (10, 0),
-        (11, 30),
+        (11, 30), (11, 35), (11, 45), (12, 0), (12, 30),
         (12, 45), (13, 0),
         (15, 55), (16, 0),
     ])
     def test_exact_match(self, h, m):
-        assert check_schedule(self._et(h, m)).should_run
+        assert check_schedule(self._et(h, m), last_slot="", auto_wait=False).should_run
 
     @pytest.mark.parametrize("h,m", [
         (8, 0), (8, 30), (17, 0), (18, 0),
-        (11, 35), (11, 40), (11, 45), (12, 0), (12, 30),
-        (12, 35), (12, 40),
     ])
-    def test_no_match_wrong_time(self, h, m):
-        assert not check_schedule(self._et(h, m)).should_run
+    def test_no_match_outside_hours(self, h, m):
+        assert not check_schedule(self._et(h, m), last_slot="", auto_wait=False).should_run
 
-    def test_buffer_absorbs_cron_latency(self):
-        """槽位后 BUFFER 分钟内仍视为该槽位触发（吸收 GitHub cron 启动延迟）."""
-        # 9:00 槽位 + 迟到 1-4 分钟
-        for m in (1, 2, 3, 4):
-            assert check_schedule(self._et(9, m)).should_run, f"9:0{m} 应匹配"
-        # 超过缓冲则不再匹配
-        assert not check_schedule(self._et(9, 5)).should_run or True  # 9:05 本身就是槽位, 跳过
+    def test_scheduled_slot_membership(self):
+        assert is_scheduled_slot(9, 30)
+        assert is_scheduled_slot(11, 35)
+        assert is_scheduled_slot(12, 0)
+        assert is_scheduled_slot(12, 30)
+        assert not is_scheduled_slot(12, 35)
+        assert not is_scheduled_slot(12, 40)
+        assert is_scheduled_slot(12, 45)
 
-    def test_buffer_no_overlap_adjacent_slots(self):
-        """5 分钟间隔的相邻槽位不重叠（避免一次触发误判两个槽位）."""
-        # 10:00 槽位窗口 [10:00,10:04], 10:05 是独立新槽位
-        sr = check_schedule(self._et(10, 2))
-        assert sr.should_run and sr.matched_slot == (10, 0)
+    def test_off_slot_skip_when_deployed(self):
+        """当上一个槽位已部署时，非槽位时刻正常跳过."""
+        sr = check_schedule(self._et(12, 35), last_slot="2026-07-06 12:30", auto_wait=False)
+        assert not sr.should_run
+
+    def test_cron_latency_absorbs_and_matches_slot(self):
+        """cron 延迟 2 分钟启动时，仍能正确匹配到当前槽位并执行."""
+        sr = check_schedule(self._et(10, 2), last_slot="2026-07-06 09:55", auto_wait=False)
+        assert sr.should_run
+        assert sr.matched_slot == (10, 0)
+
+    def test_slot_deduplication(self):
+        """相同槽位今日已成功部署过则跳过."""
+        sr = check_schedule(self._et(10, 0), last_slot="2026-07-06 10:00", auto_wait=False)
+        assert not sr.should_run
+        assert "已成功部署" in sr.reason
+
+    def test_force_run(self):
+        """force=True 时无论是否部署过均执行."""
+        sr = check_schedule(self._et(10, 0), last_slot="2026-07-06 10:00", force=True, auto_wait=False)
+        assert sr.should_run
 
     def test_weekend(self):
-        assert not check_schedule(self._et(10, 0, dow=6)).should_run
-        assert not check_schedule(self._et(10, 0, dow=5)).should_run
+        assert not check_schedule(self._et(10, 0, dow=6), last_slot="", auto_wait=False).should_run
+        assert not check_schedule(self._et(10, 0, dow=5), last_slot="", auto_wait=False).should_run
+
+    def test_nyse_holiday(self):
+        labor_day = datetime(2026, 9, 7, 10, 0, tzinfo=ZoneInfo("America/New_York"))
+        assert is_nyse_holiday(labor_day)
+        assert not check_schedule(labor_day, last_slot="", auto_wait=False).should_run
+
+    def test_last_slot_persistence(self, tmp_workspace):
+        slot_file = config.LAST_SLOT_PATH
+        record_last_slot("2026-07-06", 10, 30, path=slot_file)
+        assert read_last_slot(path=slot_file) == "2026-07-06 10:30"
+
 
 
 # ── fetch_market_data ───────────────────────
@@ -275,3 +308,49 @@ class TestFetch:
                                                   "Close": [100], "Volume": [1000]}, index=idx)
         ms.info = {}
         assert fetch_market_data()["shares"] == 773_000_000
+
+
+# ── run_monitor 流程与重试测试 ────────────────────────
+
+class TestRunMonitor:
+    @patch("main.push")
+    @patch("main.fetch_intraday_data")
+    @patch("main.fetch_market_data")
+    @patch("main.check_schedule")
+    def test_run_monitor_success(self, mock_sched, mock_fetch, mock_intro, mock_push, tmp_workspace, sample_data):
+        from main import run_monitor
+        from scco_monitor.scheduler import ScheduleResult
+        mock_sched.return_value = ScheduleResult(should_run=True, matched_slot=(10, 0), reason="命中槽位")
+        mock_fetch.return_value = sample_data
+        mock_intro.return_value = []
+        result = run_monitor()
+        assert result is True
+        assert (tmp_workspace / "data" / ".generated").exists()
+        assert (tmp_workspace / "data" / ".last_slot").exists()
+
+    @patch("main.check_schedule")
+    def test_run_monitor_skip(self, mock_sched, tmp_workspace):
+        from main import run_monitor
+        from scco_monitor.scheduler import ScheduleResult
+        mock_sched.return_value = ScheduleResult(should_run=False, matched_slot=None, reason="周末休市")
+        result = run_monitor()
+        assert result is False
+        assert not (tmp_workspace / "data" / ".generated").exists()
+
+    @patch("main.time.sleep")
+    @patch("main.push")
+    @patch("main.fetch_intraday_data")
+    @patch("main.fetch_market_data")
+    @patch("main.check_schedule")
+    def test_run_monitor_retry_until_success(self, mock_sched, mock_fetch, mock_intro, mock_push, mock_sleep, tmp_workspace, sample_data):
+        from main import run_monitor
+        from scco_monitor.scheduler import ScheduleResult
+        mock_sched.return_value = ScheduleResult(should_run=True, matched_slot=(10, 30), reason="命中槽位")
+        # 前两次失败，第三次成功
+        mock_fetch.side_effect = [Exception("网络超时"), None, sample_data]
+        mock_intro.return_value = []
+        result = run_monitor()
+        assert result is True
+        assert mock_fetch.call_count == 3
+        assert (tmp_workspace / "data" / ".generated").exists()
+

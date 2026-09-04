@@ -210,13 +210,13 @@ def build_html(daily: list[dict], intraday: list[dict], cur_data: dict,
     if matched_slot:
         h, m = matched_slot
         slot_et = now_et.replace(hour=h, minute=m, second=0, microsecond=0)
-        bj = slot_et.astimezone(_BJ)
+        now_bj = now_et.astimezone(_BJ)
         updated = (f"{slot_et.strftime('%Y-%m-%d')}"
                    f" 数据 {slot_et.strftime('%H:%M')} ET"
                    f" · 更新 {now_et.strftime('%H:%M')} ET"
-                   f" / {bj.strftime('%H:%M')} 北京时间")
+                   f" / {now_bj.strftime('%H:%M')} 北京时间")
     else:
-        now_bj = datetime.now(_BJ)
+        now_bj = now_et.astimezone(_BJ)
         updated = f"{now_et.strftime('%Y-%m-%d %H:%M')} ET / {now_bj.strftime('%Y-%m-%d %H:%M')} 北京时间"
     html = template % {
         "updated": updated,

@@ -66,10 +66,10 @@ build_html(daily, intraday, cur_data, ratio)
 - 首次运行且非交易日 → 直接退出，无空报告
 
 ### Schedule (scheduler.py)
-- **精确匹配**：`total == slot_total`，无 ± 偏差
-- 仅允许 GitHub Actions 启动延迟，由重试循环覆盖
-- 交易日 Mon-Fri 09:30-16:00 ET
-- 首个槽位 09:00 ET，全部槽位见 `scheduler.py`
+- 严格遵循 `_SCHEDULE_ET` 时间表，覆盖美股交易日全时段（开盘前 09:00-09:25，密集I 09:30-12:30，过渡 12:45-15:15，密集II 15:30-16:00）
+- **状态感知与幂等性**：`data/.last_slot` 记录今日最新部署槽位；已完成槽位跳过，未完成槽位立即执行
+- **容忍延迟与追赶**：GitHub cron 启动延迟会自动匹配当前应执行的最新槽位，永不漏跑
+- **纽交所假期检测**：内置 `_NYSE_HOLIDAYS` 假日表，节假日自动跳过
 
 ### Git SOP（每次功能修改后必须执行）
 
@@ -85,17 +85,12 @@ git add -A && git commit -m "scope: concise description" && git pull --rebase &&
 
 - **cron 永远 UTC**，与 GitHub 账号地区无关
 - **cron**: `*/5 13-21 * * 1-5`（覆盖 EDT/EST 有效交易时段，每 5 分钟触发）
-- **调度**: `scheduler.py` 的 `check_schedule()` 匹配 `[槽位, 槽位+BUFFER]` 窗口，`BUFFER=4`（`config.SCHEDULE_BUFFER_MINUTES`），吸收 GitHub cron 启动延迟
-- **Retry**: cron 周期内 5 分钟时间预算持续重试 main.py，非槽位/异常均继续尝试；未命中则退出（不报失败）
+- **调度**: `scheduler.py` 的 `check_schedule()` 状态感知当前槽位是否已部署
+- **Retry**: 遇到异常或数据源延迟时，重试 8 次（至少 6-8 次），间隔 10 秒，直到成功部署
+- **Concurrency**: `cancel-in-progress: false`，排队部署，避免新 cron 意外中断正在部署的任务
 - **Deploy**: `data/` `docs/` 先 `git-auto-commit`（`[skip ci]`）→ `configure-pages` + `upload-pages-artifact` + `deploy-pages`
-- **push / workflow_dispatch**: 直接部署仓库现有 `docs/`（数据已提交的场景）
+- **push / workflow_dispatch**: 触发 `FORCE_RUN=1`，强制立即获取最新行情并部署
 - **Cleanup**: 每次运行后保留最近 50 条 workflow runs
-
-### 时间触发约束（不可违反）
-
-1. **绝不修改时间槽** `scco_monitor/scheduler.py::_SCHEDULE_ET`（这是唯一权威调度依据）
-2. **严格按时间表执行，每个小时至少执行一次**（槽位覆盖 9:00-16:55，每小时都有槽位）
-3. **少发失败邮件，多多尝试部署**：cron 周期内靠 BUFFER + 持续重试提高命中率；未命中槽位一律 `exit 0` 不触发失败邮件
 
 ### ET → 北京时间换算（以 EDT 夏令时为例）
 
