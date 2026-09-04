@@ -33,6 +33,28 @@ def _retry_with_backoff(max_retries: int = 3, base_delay: float = 2.0):
     return decorator
 
 
+def _get_shares(ticker: yf.Ticker) -> int:
+    """获取总股本，优先使用轻量快照 fast_info 避免拉取全量财务档案引起的限流与延迟."""
+    try:
+        fast_info = getattr(ticker, "fast_info", None)
+        if fast_info is not None:
+            shares = getattr(fast_info, "shares", None)
+            if shares is not None and isinstance(shares, (int, float)) and shares > 0:
+                return int(shares)
+    except Exception:
+        pass
+    try:
+        info = getattr(ticker, "info", None)
+        if isinstance(info, dict):
+            shares = info.get("sharesOutstanding")
+            if shares is not None and isinstance(shares, (int, float)) and shares > 0:
+                return int(shares)
+    except Exception:
+        pass
+    return DEFAULT_SHARES
+
+
+
 @_retry_with_backoff(max_retries=3, base_delay=2.0)
 def fetch_daily_data(period: str = "3mo") -> list[MarketData]:
     copper = yf.Ticker(COPPER_TICKER).history(period=period)
@@ -45,7 +67,7 @@ def fetch_daily_data(period: str = "3mo") -> list[MarketData]:
     if idx.empty:
         return []
 
-    shares = yf.Ticker(SCCO_TICKER).info.get("sharesOutstanding") or DEFAULT_SHARES
+    shares = _get_shares(scco)
     return [
         MarketData(
             date=dt.strftime("%Y-%m-%d"),
@@ -89,13 +111,15 @@ def fetch_intraday_data() -> list[IntradayBar]:
 
 @_retry_with_backoff(max_retries=3, base_delay=2.0)
 def fetch_market_data() -> MarketData | None:
-    copper_hist = yf.Ticker(COPPER_TICKER).history(period="1d")
-    scco_hist = yf.Ticker(SCCO_TICKER).history(period="1d")
+    copper_ticker = yf.Ticker(COPPER_TICKER)
+    scco_ticker = yf.Ticker(SCCO_TICKER)
+    copper_hist = copper_ticker.history(period="1d")
+    scco_hist = scco_ticker.history(period="1d")
 
     if copper_hist.empty or scco_hist.empty:
         return None
 
-    shares = yf.Ticker(SCCO_TICKER).info.get("sharesOutstanding") or DEFAULT_SHARES
+    shares = _get_shares(scco_ticker)
 
     return MarketData(
         date=scco_hist.index[-1].strftime("%Y-%m-%d"),
@@ -107,3 +131,4 @@ def fetch_market_data() -> MarketData | None:
         scco_volume=int(scco_hist["Volume"].iloc[-1]),
         shares=int(shares),
     )
+

@@ -19,7 +19,7 @@ on:
   #  未命中槽位窗口的 run -> 时间预算内重试后退出 (不报失败邮件)
   #  ═══════════════════════════════════════════════════════════════
   schedule:
-    - cron: '*/5 13-21 * * 1-5'
+    - cron: '*/5 13-22 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -42,22 +42,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
+          enable-cache: true
 
-      - name: Cache virtualenv
-        id: venv-cache
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-3.12-${{ hashFiles('requirements.txt') }}
-
-      - name: Create virtualenv
-        if: steps.venv-cache.outputs.cache-hit != 'true'
+      - name: Install dependencies
         run: |
-          python -m venv .venv
-          .venv/bin/pip install -r requirements.txt
+          uv pip install --system -r requirements.txt
 
       - name: Run monitor
         id: run
@@ -75,7 +66,7 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             rm -f data/.generated
             echo "::notice::[执行监控] 第 ${i}/${MAX_RETRIES} 次运行 main.py..."
-            if .venv/bin/python main.py; then
+            if python main.py; then
               if [ -f data/.generated ]; then
                 echo "deploy=true" >> "$GITHUB_OUTPUT"
                 echo "::notice::第 ${i} 次运行成功生成数据，执行部署"
@@ -126,11 +117,3 @@ jobs:
         if: steps.run.outputs.deploy == 'true'
         uses: actions/deploy-pages@v5
 
-      - name: Cleanup old runs (keep last 50)
-        if: always()
-        uses: Mattraks/delete-workflow-runs@v2
-        with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: 50
