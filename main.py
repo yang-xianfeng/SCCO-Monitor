@@ -129,7 +129,7 @@ def run_monitor(force: bool = False) -> bool:
         f"【SCCO Monitor】{now.strftime('%m-%d %H:%M')}{tag}\n"
         f"铜 ${cur_data['copper']}  |  SCCO ${cur_data['scco_close']}\n"
         f"系数 {ratio['ratio']}  |  {sig_tag}\n"
-        f"📊 {config.PAGES_URL}"
+        f"📊 {config.get_pages_url()}"
     )
     print(f"\n{report}\n")
     push(report)

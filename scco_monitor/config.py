@@ -43,10 +43,29 @@ HTML_PATH = DOCS_DIR / "index.html"
 
 # ── GitHub Pages ──────────────────────────────────
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "yang-xianfeng/SCCO-Monitor")
-PAGES_URL = (
-    f"https://{GITHUB_REPOSITORY.split('/')[0]}.github.io/"
-    f"{GITHUB_REPOSITORY.split('/')[1]}/"
-)
+CNAME_PATH = DOCS_DIR / "CNAME"
+
+
+def get_pages_url() -> str:
+    """获取页面访问 URL（优先环境变量，次选 CNAME 自定义域名，兜底 github.io）."""
+    env_url = os.getenv("PAGES_URL")
+    if env_url:
+        return env_url
+    if CNAME_PATH.exists():
+        try:
+            cname = CNAME_PATH.read_text(encoding="utf-8").strip()
+            if cname:
+                return f"https://{cname}"
+        except OSError:
+            pass
+    repo = os.getenv("GITHUB_REPOSITORY", GITHUB_REPOSITORY)
+    parts = repo.split("/")
+    user = parts[0] if len(parts) > 0 else "unknown"
+    name = parts[1] if len(parts) > 1 else ""
+    return f"https://{user}.github.io/{name}/"
+
+
+PAGES_URL = get_pages_url()
 
 # ── 飞书 / Telegram ──────────────────────────────
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "")

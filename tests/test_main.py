@@ -56,6 +56,7 @@ def tmp_workspace(tmp_path):
          patch.object(config, "CSV_INTRADAY_PATH", d / "intraday.csv"), \
          patch.object(config, "LAST_SLOT_PATH", d / ".last_slot"), \
          patch.object(config, "HTML_PATH", doc / "index.html"), \
+         patch.object(config, "CNAME_PATH", doc / "CNAME"), \
          patch.object(scco_chart, "DOCS_DIR", doc), \
          patch.object(scco_chart, "HTML_PATH", doc / "index.html"):
         yield tmp_path
@@ -353,4 +354,27 @@ class TestRunMonitor:
         assert result is True
         assert mock_fetch.call_count == 3
         assert (tmp_workspace / "data" / ".generated").exists()
+
+
+# ── Pages URL 解析测试 ────────────────────────────────
+
+class TestPagesUrl:
+    def test_pages_url_from_cname(self, tmp_workspace):
+        from scco_monitor.config import get_pages_url
+        cname_file = tmp_workspace / "docs" / "CNAME"
+        cname_file.write_text("scco.dandan.tech\n", encoding="utf-8")
+        with patch.dict("os.environ", {}, clear=True):
+            assert get_pages_url() == "https://scco.dandan.tech"
+
+    def test_pages_url_env_override(self, tmp_workspace):
+        from scco_monitor.config import get_pages_url
+        cname_file = tmp_workspace / "docs" / "CNAME"
+        cname_file.write_text("scco.dandan.tech\n", encoding="utf-8")
+        with patch.dict("os.environ", {"PAGES_URL": "https://custom.domain.com"}):
+            assert get_pages_url() == "https://custom.domain.com"
+
+    def test_pages_url_default_fallback(self, tmp_workspace):
+        from scco_monitor.config import get_pages_url
+        with patch.dict("os.environ", {"GITHUB_REPOSITORY": "testuser/testrepo"}, clear=True):
+            assert get_pages_url() == "https://testuser.github.io/testrepo/"
 
